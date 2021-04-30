@@ -6,7 +6,18 @@ export default class Login extends Component {
         usuario: "",
         clave: ""
     }
+    isUser() {
+        var data = JSON.parse(localStorage.getItem('user'))
+        console.log(data.id)
+        if (data.id !== "") {
+            return (
+                this.props.history.push("/perfil")
+            )
 
+        }
+
+
+    }
     componentDidMount() {
         // this.sendInfo();
     }
@@ -31,7 +42,11 @@ export default class Login extends Component {
         }
         const res = await axios
             .post("http://localhost:4000/login/", user)
-        console.log(res)
+            .then(response => {
+                localStorage.setItem('user', JSON.stringify(response.data));
+                this.isUser()
+
+            })
     };
 
     render() {

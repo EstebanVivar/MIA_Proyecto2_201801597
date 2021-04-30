@@ -19,7 +19,6 @@ import (
 var Database *sql.DB
 
 type Usuario struct {
-	Id  string `json:"id"`
 	User  string `json:"user"`
 	Pass  string `json:"pass"`
 	Name  string `json:"name"`
@@ -27,7 +26,19 @@ type Usuario struct {
 	Birth string `json:"birth"`
 	Email string `json:"email"`
 	Photo string `json:"photo"`
-	Register  string `json:"register"`
+}
+
+type UsuarioLogin struct {
+	Id       string `json:"id"`
+	User     string `json:"user"`
+	Pass     string `json:"pass"`
+	Name     string `json:"name"`
+	Last     string `json:"last"`
+	Birth    string `json:"birth"`
+	Email    string `json:"email"`
+	Photo    string `json:"photo"`
+	Register string `json:"register"`
+	Admin  	 int    `json:"admin"`
 }
 
 type Login struct {
@@ -188,7 +199,7 @@ func load(w http.ResponseWriter, r *http.Request) {
 				for _, element := range element.Predictions {
 					_, err := Database.Exec(`CALL INSERT_SPORT(:1,:2,:3)`,
 						element.Sport, nil, nil)
-					commitDB(err)				
+					commitDB(err)
 					_, er := Database.Exec(`CALL INSERT_EVENT(:1,:2,:3,:4,:5,:6,:7,:8)`,
 						element.Local, element.Visit, element.Date, element.Result.R_local,
 						element.Result.R_visitant, journey, season, element.Sport)
@@ -207,9 +218,6 @@ func registrarUsuario(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var usuario Usuario
 	_ = json.NewDecoder(r.Body).Decode(&usuario)
-
-	// fmt.Print(usuario.Name, "\n", usuario.Last, "\n", usuario.User, "\n",
-	// 	usuario.Birth, "\n", usuario.Email, "\n", usuario.Photo, usuario.Pass, "\n\n")
 	_, err := Database.Exec(`CALL INSERT_USER(:1,:2,:3,:4,:5,:6,:7)`,
 		usuario.Name, usuario.Last, usuario.Pass, usuario.User, usuario.Birth, usuario.Email, usuario.Photo)
 	if err != nil {
@@ -227,26 +235,32 @@ func login(w http.ResponseWriter, r *http.Request) {
 	var login Login
 	_ = json.NewDecoder(r.Body).Decode(&login)
 	var isUser int
-	var isAdmin int
+	var isAd int
 	var idUser int
-	var User Usuario
-	_, err := Database.Exec("CALL LOGIN(:1,:2,:3,:4,:5)", login.User, login.Pass, sql.Out{Dest: &isUser}, sql.Out{Dest: &isAdmin},sql.Out{Dest: &idUser})
+	var User UsuarioLogin
+
+	_, err := Database.Exec("CALL LOGIN(:1,:2,:3,:4,:5)", login.User, login.Pass, sql.Out{Dest: &isUser},
+		sql.Out{Dest: &isAd}, sql.Out{Dest: &idUser})
+
 	if err != nil {
 		fmt.Println("Error running query")
 		fmt.Println(err)
 		return
 	} else {
-		err:=Database.QueryRow("SELECT * FROM USUARIO WHERE ID_USUARIO = :1",idUser).Scan(&User.Id,&User.Name,&User.Last,&User.Pass,&User.User,
-			&User.Birth,&User.Register,&User.Email,&User.Photo)
-		if err != nil {
-			fmt.Println("Error running query")
-			fmt.Println(err)
-			return	
+		if isUser == 1 {
+			
+			Database.QueryRow("SELECT * FROM USUARIO WHERE ID_USUARIO = :1", idUser).Scan(&User.Id, &User.Name,
+				&User.Last, &User.Pass, &User.User, &User.Birth,
+				&User.Register, &User.Email, &User.Photo)
+			if isAd==1{
+				User.Admin=1
+			}else{
+				User.Admin=0
+			}
 		}
-		fmt.Println(err)
 	}
-	fix:=strings.Split(User.Birth,"T")
-	User.Birth=fix[0]
+	fix := strings.Split(User.Birth, "T")
+	User.Birth = fix[0]
 	json.NewEncoder(w).Encode(User)
 }
 
