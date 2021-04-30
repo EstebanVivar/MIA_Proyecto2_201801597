@@ -33,7 +33,7 @@ type Login struct {
 	Pass string `json:"pass"`
 }
 
-// ///////////////////////////////
+////////////////////////////////
 type prediction struct {
 	P_visitant int `json:"visitante"`
 	P_local    int `json:"local"`
@@ -77,10 +77,10 @@ type Info map[string]user
 
 func loadTest(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	var t Info
-	json.NewDecoder(r.Body).Decode(&t)
+	var Carga Info
+	json.NewDecoder(r.Body).Decode(&Carga)
 
-	for key, element := range t {
+	for key, element := range Carga {
 		fmt.Println("ID:", key)
 		fmt.Print("\t")
 		fmt.Println("Usuario:", element.User)
@@ -131,12 +131,7 @@ func loadTest(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
-func getMonth(mes string) string {
-	if len(mes) < 2 {
-		mes = "0" + mes
-	}
-	return mes
-}
+
 func commitDB(err error) {
 	if err != nil {
 		fmt.Println("Error running query")
@@ -151,24 +146,26 @@ func load(w http.ResponseWriter, r *http.Request) {
 	var user string
 	var season string
 	var tier string
+	var journey string
 
-	var t Info
-	json.NewDecoder(r.Body).Decode(&t)
+	var Carga Info
+	json.NewDecoder(r.Body).Decode(&Carga)
 
-	//Usuario
-	for _, element := range t {
+	fmt.Println("Usuarios")
+	for _, element := range Carga {
 		_, err := Database.Exec(`CALL INSERT_USER(:1,:2, :3, :4,:5, :6, :7)`,
 			element.Name, element.Last, element.Pass, element.User, nil, nil, nil)
 		commitDB(err)
 		user = element.User
 
-		//Resultados
+		fmt.Println("Resultados")
 		for _, element := range element.Results {
-			array := strings.Split(element.Season, "-Q")
-			anyo, _ := strconv.Atoi(array[0])
-			mes, _ := strconv.Atoi(array[1])
+			arrayResultados := strings.Split(element.Season, "-Q")
+			anyo, _ := strconv.Atoi(arrayResultados[0])
+			mes, _ := strconv.Atoi(arrayResultados[1])
+
 			_, err := Database.Exec(`CALL INSERT_SEASON(:1,:2, :3, :4)`,
-				element.Season, anyo, mes, array[0]+"-"+getMonth(array[1]))
+				element.Season, anyo, mes, arrayResultados[0]+"-"+arrayResultados[1])
 			commitDB(err)
 			season = element.Season
 			tier = element.Tier
@@ -177,44 +174,37 @@ func load(w http.ResponseWriter, r *http.Request) {
 				user, season, tier)
 			commitDB(er)
 
-			// 	fmt.Print("\t")
-			// 	fmt.Println("Resultados:")
-			// 	fmt.Print("\t\t")
-			// 	fmt.Println("Temporada:", element.Season)
-			// 	fmt.Print("\t\t")
-			// 	fmt.Println("Membresia:", element.Tier)
-			// 	for _, element := range element.Journeys {
-			// 		fmt.Print("\t\t")
-			// 		fmt.Println("Jornadas:")
-			// 		fmt.Print("\t\t\t")
-			// 		fmt.Println("Jornada:", element.Journey)
-			// 		for _, element := range element.Predictions {
-			// 			fmt.Print("\t\t\t")
-			// 			fmt.Println("Predicciones:")
-			// 			fmt.Print("\t\t\t\t")
-			// 			fmt.Println("Deporte:", element.Sport)
-			// 			fmt.Print("\t\t\t\t")
-			// 			fmt.Println("Local:", element.Local)
-			// 			fmt.Print("\t\t\t\t")
-			// 			fmt.Println("Visitante:", element.Visit)
-			// 			fmt.Print("\t\t\t\t")
-			// 			fmt.Println("Fecha:", element.Date)
-			// 			fmt.Print("\t\t\t\t")
-			// 			fmt.Println("Prediccion:")
-			// 			fmt.Print("\t\t\t\t\t")
-			// 			fmt.Println("P Local:", element.Result.R_local)
-			// 			fmt.Print("\t\t\t\t\t")
-			// 			fmt.Println("P Visita:", element.Result.R_visitant)
-			// 			fmt.Print("\t\t\t\t")
-			// 			fmt.Println("Resultado:")
-			// 			fmt.Print("\t\t\t\t\t")
-			// 			fmt.Println("R Local:", element.Prediction.P_local)
-			// 			fmt.Print("\t\t\t\t\t")
-			// 			fmt.Println("R Visita:", element.Prediction.P_visitant)
+			fmt.Println("Jornadas")
+			for _, element := range element.Journeys {
+				journey = element.Journey
+				arrayJornada := strings.Split(element.Journey, "J")
+				_, er := Database.Exec(`CALL INSERT_JOURNEY(:1,:2,:3,:4)`,
+					element.Journey, season, arrayResultados[0]+"-"+arrayResultados[1], arrayJornada[1])
+				commitDB(er)
 
-			// 		}
-			// 	}
-			// }
+				fmt.Println("Predicciones")
+				for _, element := range element.Predictions {
+					_, err := Database.Exec(`CALL INSERT_SPORT(:1,:2,:3)`,
+						element.Sport, nil, nil)
+					commitDB(err)
+					fmt.Println(element.Local + "'")
+					fmt.Println(element.Visit + "'")
+					fmt.Println(element.Date + "'")
+					fmt.Println(strconv.Itoa(element.Result.R_local) + "'")
+					fmt.Println(strconv.Itoa(element.Result.R_visitant) + "'")
+					fmt.Println(journey + "'")
+					fmt.Println(season + "'")
+					fmt.Println(element.Sport + "'")
+					_, er := Database.Exec(`CALL INSERT_EVENT(:1,:2,:3,:4,:5,:6,:7,:8)`,
+						element.Local, element.Visit, element.Date, element.Result.R_local,
+						element.Result.R_visitant, journey, season, element.Sport)
+					commitDB(er)
+
+					fmt.Println("R Local:", element.Prediction.P_local)
+					fmt.Println("R Visita:", element.Prediction.P_visitant)
+
+				}
+			}
 		}
 	}
 }
