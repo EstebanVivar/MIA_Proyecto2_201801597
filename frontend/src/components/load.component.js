@@ -32,6 +32,7 @@ export default class CargaMasiva extends React.Component {
     return (
       <div className="container">
 
+  
 
         <FilePicker
           extensions={["yaml"]} 

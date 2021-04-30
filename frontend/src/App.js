@@ -6,6 +6,7 @@ import Login from "./components/login.component";
 import SignUp from "./components/signup.component";
 import Eventos from "./components/eventos.component";
 import A from "./components/load.component";
+import Profile from "./components/profile.component";
 // eslint-disable-next-line
 import axios from 'axios'
 
@@ -43,6 +44,7 @@ class App extends Component {
                 <Route path="/ingresar" component={Login} />
                 <Route path="/registrar" component={SignUp} />
                 <Route path="/test" component={A} />
+                <Route path="/perfil" component={Profile} />
                 <div className="event-inner">
                   <Route path="/eventos" component={Eventos} />
                 </div>

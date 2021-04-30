@@ -19,6 +19,7 @@ import (
 var Database *sql.DB
 
 type Usuario struct {
+	Id  string `json:"id"`
 	User  string `json:"user"`
 	Pass  string `json:"pass"`
 	Name  string `json:"name"`
@@ -26,6 +27,7 @@ type Usuario struct {
 	Birth string `json:"birth"`
 	Email string `json:"email"`
 	Photo string `json:"photo"`
+	Register  string `json:"register"`
 }
 
 type Login struct {
@@ -186,15 +188,7 @@ func load(w http.ResponseWriter, r *http.Request) {
 				for _, element := range element.Predictions {
 					_, err := Database.Exec(`CALL INSERT_SPORT(:1,:2,:3)`,
 						element.Sport, nil, nil)
-					commitDB(err)
-					fmt.Println(element.Local + "'")
-					fmt.Println(element.Visit + "'")
-					fmt.Println(element.Date + "'")
-					fmt.Println(strconv.Itoa(element.Result.R_local) + "'")
-					fmt.Println(strconv.Itoa(element.Result.R_visitant) + "'")
-					fmt.Println(journey + "'")
-					fmt.Println(season + "'")
-					fmt.Println(element.Sport + "'")
+					commitDB(err)				
 					_, er := Database.Exec(`CALL INSERT_EVENT(:1,:2,:3,:4,:5,:6,:7,:8)`,
 						element.Local, element.Visit, element.Date, element.Result.R_local,
 						element.Result.R_visitant, journey, season, element.Sport)
@@ -232,19 +226,28 @@ func login(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var login Login
 	_ = json.NewDecoder(r.Body).Decode(&login)
-	var a int
-	var b int
-	_, err := Database.Exec("CALL LOGIN(:1,:2,:3,:4)", login.User, login.Pass, sql.Out{Dest: &a}, sql.Out{Dest: &b})
+	var isUser int
+	var isAdmin int
+	var idUser int
+	var User Usuario
+	_, err := Database.Exec("CALL LOGIN(:1,:2,:3,:4,:5)", login.User, login.Pass, sql.Out{Dest: &isUser}, sql.Out{Dest: &isAdmin},sql.Out{Dest: &idUser})
 	if err != nil {
 		fmt.Println("Error running query")
 		fmt.Println(err)
 		return
 	} else {
-		fmt.Println(a)
-		fmt.Println(b)
+		err:=Database.QueryRow("SELECT * FROM USUARIO WHERE ID_USUARIO = :1",idUser).Scan(&User.Id,&User.Name,&User.Last,&User.Pass,&User.User,
+			&User.Birth,&User.Register,&User.Email,&User.Photo)
+		if err != nil {
+			fmt.Println("Error running query")
+			fmt.Println(err)
+			return	
+		}
+		fmt.Println(err)
 	}
-	fmt.Print(login)
-	json.NewEncoder(w).Encode(login)
+	fix:=strings.Split(User.Birth,"T")
+	User.Birth=fix[0]
+	json.NewEncoder(w).Encode(User)
 }
 
 /* func info(w http.ResponseWriter, r *http.Request) {
