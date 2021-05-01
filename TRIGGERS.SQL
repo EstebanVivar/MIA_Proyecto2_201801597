@@ -96,3 +96,19 @@ END IF;
 
 
 END;
+
+--------------------------------------------------------
+CREATE OR REPLACE TRIGGER INSERT_JORNADA
+BEFORE INSERT ON JORNADA 
+    FOR EACH ROW 
+    DECLARE
+    COUNTER NUMBER;
+BEGIN
+    SELECT COUNT(*) INTO COUNTER 
+    FROM JORNADA 
+    WHERE :NEW.NOMBRE = NOMBRE
+    AND :NEW.ID_TEMPORADA = ID_TEMPORADA;
+    IF (COUNTER >0) 
+    then RAISE_APPLICATION_ERROR(-20001, 'Ya existe Jornada para temporada'); 
+    END IF;
+END;

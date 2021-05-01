@@ -1,0 +1,56 @@
+A2:
+  nombre: Jorge
+  apellido: Pook
+  password: Mvjtqy123
+  username: jpook0@army.mil
+  resultados:
+    - temporada: 2019-Q2
+      tier: gold
+      jornadas:
+        - jornada: J1
+          predicciones:
+            - deporte: golf
+              fecha: 03/02/2019 11:29
+              visitante: Ollie Worden
+              local: Kylie Peerless
+              prediccion:
+                visitante: 0
+                local: 8
+              resultado:
+                visitante: 4
+                local: 8
+            - deporte: tennis
+              fecha: 05/02/2019 22:34
+              visitante: Damara Frostick
+              local: Idell Worton
+              prediccion:
+                visitante: 7
+                local: 7
+              resultado:
+                visitante: 6
+                local: 0
+    - temporada: 2018-Q3
+      tier: silver
+      jornadas:
+        - jornada: J1
+          predicciones:
+            - deporte: tennis
+              fecha: 05/03/2018 11:58
+              visitante: Sarge Rowlings
+              local: Kermit Garbar
+              prediccion:
+                visitante: 8
+                local: 0
+              resultado:
+                visitante: 8
+                local: 4
+            - deporte: tennis
+              fecha: 02/03/2018 20:33
+              visitante: Cacilie Peoples
+              local: Stefa Kissick
+              prediccion:
+                visitante: 7
+                local: 5
+              resultado:
+                visitante: 2
+                local: 6

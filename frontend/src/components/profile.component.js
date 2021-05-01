@@ -2,71 +2,99 @@ import React, { Component } from "react";
 import axios from 'axios';
 
 export default class Profile extends Component {
+    user = JSON.parse(localStorage.getItem('user'));
+    state = {
+        usuario: this.user.user,
+        clave: this.user.pass,
+        nombre: this.user.name,
+        apellido: this.user.last,
+        nacimiento: this.user.birth,
+        correo: this.user.email,
+        foto: this.user.photo,
+        id: this.user.id
+    }
+    OnInputChange = e => {
+        this.setState({
+            [e.target.name]: e.target.value,
+        });
+        console.log(this.state)
+    }
+    onSubmit = async (e) => {
+        e.preventDefault();
+        await this.sendPost();
 
+    };
+    sendPost = async () => {
+        const user = {
+            user: this.state.usuario,
+            pass: this.state.clave,
+            name: this.state.nombre,
+            last: this.state.apellido,
+            birth: this.state.nacimiento,
+            email: this.state.correo,
+            photo: this.state.foto,
+            id:this.state.id
+        }
+        const res = await axios
+            .post("http://localhost:4000/actualizar/", user)
+
+        console.log(res);
+    }
     render() {
         return (
 
             <div className="container">
 
-                <form>
-                    <div className="row mt-5 align-items-center">
-                        <div className="col-md-6 text-center mb-5">
-                            <div className="avatar avatar-xl">
+                    <div className="row  align-items-center">
+                        <div className="col-md-12 text-center ">
+                            <div className="avatar avatar-xl mb-3" >
                                 <img src="https://bootdey.com/img/Content/avatar/avatar6.png" alt="..." className="avatar-img rounded-circle" />
-                            </div>
-                        </div>
-                        <div className="col">
-                            <div className="row align-items-center">
-                                <div className="col-md-7">
-                                    <h4 className="mb-1">Brown, Asher</h4>
-                                    <p className="small mb-3"><span className="badge badge-dark">New York, USA</span></p>
-                                </div>
-                            </div>
-                            <div className="row mb-4">
-                                <div className="col">
-                                    <p className="small mb-0 text-muted">Nec Urna Suscipit Ltd</p>
-                                    <p className="small mb-0 text-muted">P.O. Box 464, 5975 Eget Avenue</p>
-                                    <p className="small mb-0 text-muted">(537) 315-1481</p>
-                                </div>
+                                <p className="small mb-3"><span className="badge badge-dark">Invitado</span></p>
                             </div>
                         </div>
                     </div>
-                    <hr className="my-4" />
-                    <div className="form-row">
-                        <div className="form-group col-md-6">
-                            <label >Firstname</label>
-                            <input type="text" id="firstname" className="form-control" placeholder="Brown" />
+                    <input type="text" name="usuario" value={this.state.usuario} onChange={this.OnInputChange} className="form-control "
+                        style={{ textAlign: 'center', position: 'relative', left: '42%', maxWidth: 16 + '%' }} />
+
+
+
+                    <hr className="my-4 " />
+                    <div className="form-row ">
+                        <div className="form-group col-md-6 ">
+                            <label >Nombre</label>
+                            <input type="text" name="nombre" value={this.state.nombre} onChange={this.OnInputChange} className="form-control" />
                         </div>
                         <div className="form-group col-md-6">
-                            <label >Lastname</label>
-                            <input type="text" id="lastname" className="form-control" placeholder="Asher" />
+                            <label >Apellido</label>
+                            <input type="text" name="apellido" value={this.state.apellido} onChange={this.OnInputChange} className="form-control" />
                         </div>
                     </div>
                     <div className="form-group">
-                        <label>Email</label>
-                        <input type="email" className="form-control" id="inputEmail4" placeholder="brown@asher.me" />
+                        <label>Correo</label>
+                        <input type="text" name="correo" value={this.state.correo} onChange={this.OnInputChange} className="form-control" />
+
                     </div>
                     <div className="form-group">
-                        <label>Address</label>
-                        <input type="text" className="form-control" id="inputAddress5" placeholder="P.O. Box 464, 5975 Eget Avenue" />
+                        <label>Fecha de nacimiento</label>
+                        <input type="date" name="nacimiento" value={this.state.nacimiento} onChange={this.OnInputChange} className="form-control" />
                     </div>
 
-                    <hr className="my-4" />
+
                     <div className="row mb-4">
                         <div className="col-md-6">
                             <div className="form-group">
-                                <label >Old Password</label>
-                                <input type="password" className="form-control" id="inputPassword5" />
+                                <label >Cambiar contraseña Actual</label>
+                                <input type="password" name="clave" value={this.state.clave} onChange={this.OnInputChange} className="form-control" />
                             </div>
-                            <div className="form-group">
-                                <label >New Password</label>
-                                <input type="password" className="form-control" id="inputPassword5" />
-                            </div>
-                            <div className="form-group">
-                                <label >Confirm Password</label>
-                                <input type="password" className="form-control" id="inputPassword6" />
+                            <div className="row  align-items-center">
+                                <div className="col-md-12 text-center ">
+                                    <form onSubmit={this.onSubmit}>
+                                        <button type="submit" className="btn btn-primary">Guardar Cambios</button>
+                                    </form>
+                                </div>
                             </div>
                         </div>
+
                         <div className="col-md-6">
                             <p className="mb-2">Requisitos para la contraseña</p>
                             <p className="small text-muted mb-2">Para crear una nueva contraseña, esta debe cumplir con los siguietnes requisitos:</p>
@@ -78,8 +106,7 @@ export default class Profile extends Component {
                             </ul>
                         </div>
                     </div>
-                    <button type="submit" className="btn btn-primary">Save Change</button>
-                </form>
+                
             </div>
         )
     }

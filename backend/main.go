@@ -27,9 +27,19 @@ type Usuario struct {
 	Email string `json:"email"`
 	Photo string `json:"photo"`
 }
+type UsuarioUpdate struct {
+	User  string `json:"user"`
+	Pass  string `json:"pass"`
+	Name  string `json:"name"`
+	Last  string `json:"last"`
+	Birth string `json:"birth"`
+	Email string `json:"email"`
+	Photo string `json:"photo"`
+	Id    int    `json:"id"`
+}
 
 type UsuarioLogin struct {
-	Id       string `json:"id"`
+	Id       int    `json:"id"`
 	User     string `json:"user"`
 	Pass     string `json:"pass"`
 	Name     string `json:"name"`
@@ -38,7 +48,7 @@ type UsuarioLogin struct {
 	Email    string `json:"email"`
 	Photo    string `json:"photo"`
 	Register string `json:"register"`
-	Admin  	 int    `json:"admin"`
+	Admin    int    `json:"admin"`
 }
 
 type Login struct {
@@ -144,11 +154,10 @@ func loadTest(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
-
 func commitDB(err error) {
 	if err != nil {
 		fmt.Println("Error running query")
-		fmt.Println(err)
+		fmt.Println(err.Error())
 	} else {
 
 		Database.Exec("COMMIT;")
@@ -200,26 +209,43 @@ func load(w http.ResponseWriter, r *http.Request) {
 					_, err := Database.Exec(`CALL INSERT_SPORT(:1,:2,:3)`,
 						element.Sport, nil, nil)
 					commitDB(err)
+
 					_, er := Database.Exec(`CALL INSERT_EVENT(:1,:2,:3,:4,:5,:6,:7,:8)`,
 						element.Local, element.Visit, element.Date, element.Result.R_local,
 						element.Result.R_visitant, journey, season, element.Sport)
 					commitDB(er)
 
-					fmt.Println("R Local:", element.Prediction.P_local)
-					fmt.Println("R Visita:", element.Prediction.P_visitant)
-
+					_, e := Database.Exec(`CALL CARGA_PREDICCION(:1,:2,:3,:4,:5,:6,:7)`,
+						element.Prediction.P_local, element.Prediction.P_visitant, user,
+						journey, season, element.Local, element.Visit)
+					commitDB(e)
 				}
 			}
 		}
 	}
 }
-
 func registrarUsuario(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var usuario Usuario
 	_ = json.NewDecoder(r.Body).Decode(&usuario)
 	_, err := Database.Exec(`CALL INSERT_USER(:1,:2,:3,:4,:5,:6,:7)`,
 		usuario.Name, usuario.Last, usuario.Pass, usuario.User, usuario.Birth, usuario.Email, usuario.Photo)
+	if err != nil {
+		fmt.Println("Error running query")
+		fmt.Println(err)
+		return
+	} else {
+		Database.Exec("COMMIT;")
+	}
+	json.NewEncoder(w).Encode(usuario)
+}
+
+func actualizarUsuario(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	var usuario UsuarioUpdate
+	_ = json.NewDecoder(r.Body).Decode(&usuario)
+	_, err := Database.Exec(`CALL UPDATE_USER(:1,:2,:3,:4,:5,:6,:7,:8)`,
+		usuario.Id, usuario.Name, usuario.Last, usuario.Pass, usuario.User, usuario.Birth, usuario.Email, usuario.Photo)
 	if err != nil {
 		fmt.Println("Error running query")
 		fmt.Println(err)
@@ -241,21 +267,24 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	_, err := Database.Exec("CALL LOGIN(:1,:2,:3,:4,:5)", login.User, login.Pass, sql.Out{Dest: &isUser},
 		sql.Out{Dest: &isAd}, sql.Out{Dest: &idUser})
-
+	fmt.Println(login)
 	if err != nil {
 		fmt.Println("Error running query")
 		fmt.Println(err)
 		return
 	} else {
 		if isUser == 1 {
-			
+
 			Database.QueryRow("SELECT * FROM USUARIO WHERE ID_USUARIO = :1", idUser).Scan(&User.Id, &User.Name,
 				&User.Last, &User.Pass, &User.User, &User.Birth,
 				&User.Register, &User.Email, &User.Photo)
-			if isAd==1{
-				User.Admin=1
-			}else{
-				User.Admin=0
+			fmt.Println(&User.Id, &User.Name,
+				&User.Last, &User.Pass, &User.User, &User.Birth,
+				&User.Register, &User.Email, &User.Photo)
+			if isAd == 1 {
+				User.Admin = 1
+			} else {
+				User.Admin = 0
 			}
 		}
 	}
@@ -293,6 +322,7 @@ func main() {
 	router := mux.NewRouter()
 	router.HandleFunc("/registrar/", registrarUsuario).Methods("POST")
 	router.HandleFunc("/login/", login).Methods("POST")
+	router.HandleFunc("/actualizar/", actualizarUsuario).Methods("POST")
 	router.HandleFunc("/test/", load).Methods("POST")
 
 	db, err := sql.Open("godror", "admin/admin@localhost:1521/ORCLCDB.localdomain")

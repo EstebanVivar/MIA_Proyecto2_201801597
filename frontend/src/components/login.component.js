@@ -19,7 +19,6 @@ export default class Login extends Component {
 
     }
     componentDidMount() {
-        // this.sendInfo();
     }
 
     OnInputChange = e => {
@@ -40,7 +39,7 @@ export default class Login extends Component {
             user: this.state.usuario,
             pass: this.state.clave
         }
-        const res = await axios
+        await axios
             .post("http://localhost:4000/login/", user)
             .then(response => {
                 localStorage.setItem('user', JSON.stringify(response.data));
