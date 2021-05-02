@@ -4,13 +4,49 @@ import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
+import esLocale from '@fullcalendar/core/locales/es';
+import axios from 'axios';
 
 export default class DemoApp extends React.Component {
 
   state = {
     weekendsVisible: true,
-    currentEvents: []
+    calendarEvents: [
+      { title: "Event Now", start: new Date() }
+    ]
+    
   }
+  componentDidMount() {
+    this.sendGet();
+  }
+  
+
+ 
+  fixEvent(local, visit, fechaI) {    
+    let Etitle = local + ' - ' + visit;
+    let Estart = fechaI;
+    this.setState({
+      calendarEvents: this.state.calendarEvents.concat({
+        title: Etitle,
+        start: Estart
+      })
+    })
+  }
+
+  
+  sendGet = async () => {
+
+    const res = await axios
+      .get("http://localhost:4000/eventos/")
+      .then(response => {
+        //localStorage.setItem('events', JSON.stringify(response.data));
+        response.data.forEach(element => {
+          this.fixEvent(element.local, element.visita, element.fecha_inicio);
+        });
+        console.log(this.state.calendarEvents);
+      });
+  }
+
 
   render() {
     return (
@@ -23,16 +59,19 @@ export default class DemoApp extends React.Component {
               center: 'title',
               right: 'dayGridMonth,timeGridWeek'
             }}
+            locale={esLocale}
             initialView='dayGridMonth'
             editable={true}
             selectable={true}
             selectMirror={true}
             dayMaxEvents={true}
+            eventSources={this.state.eventos}
             weekends={this.state.weekendsVisible}
             select={this.handleDateSelect}
-            eventContent={renderEventContent} 
+            eventContent={renderEventContent}
             eventClick={this.handleEventClick}
-            eventsSet={this.handleEvents} 
+            eventsSet={this.handleEvents}
+            events={this.state.calendarEvents}
           />
         </div>
       </div>
@@ -64,16 +103,12 @@ export default class DemoApp extends React.Component {
 
 
 
-  handleEvents = (events) => {
-    this.setState({
-      currentEvents: events
-    })
+
+
+  handleEventClick = (clickInfo) => {
+    clickInfo.event.remove()
+    console.log(this.state.currentEvents)
   }
-
-
-handleEventClick = (clickInfo) => {
-  clickInfo.event.remove()
-}
 }
 
 function renderEventContent(eventInfo) {

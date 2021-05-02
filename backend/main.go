@@ -18,6 +18,20 @@ import (
 
 var Database *sql.DB
 
+type Evento struct {
+	Id      string `json:"id"`
+	Home    string `json:"local"`
+	Visit   string `json:"visita"`
+	I_Date  string `json:"fecha_inicio"`
+	F_Date  string `json:"fecha_final"`
+	S_Home  string `json:"m_local"`
+	S_Visit string `json:"m_visita"`
+	Journey string `json:"jornada"`
+	Sport   string `json:"deporte"`
+}
+
+type arrayEvent []Evento
+
 type Usuario struct {
 	User  string `json:"user"`
 	Pass  string `json:"pass"`
@@ -293,29 +307,33 @@ func login(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(User)
 }
 
-/* func info(w http.ResponseWriter, r *http.Request) {
+func obtenerEventos(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	var event Evento
+	var lista = arrayEvent{}
+	rows, err := Database.Query("SELECT * FROM EVENTO")
+	if err != nil {
+		fmt.Println("Error running query")
+		fmt.Println(err)
+		return
+	}
+	for rows.Next() {
 
-	// 	// var index string
-	// 	// var data string
-	// 	var newTest test
-	// 	listTest = allTest{}
+		rows.Scan(&event.Id, &event.Home, &event.Visit,
+			&event.I_Date, &event.S_Home, &event.S_Visit,
+			&event.Journey, &event.Sport, &event.F_Date)
 
-	// 	rows, err := Database.Query("SELECT * FROM TEST order by ID_TEMPORADA desc")
-	// 	if err != nil {
-	// 		fmt.Println("Error running query")
-	// 		fmt.Println(err)
-	// 		return
-	// 	}
+		fix := strings.Split(event.I_Date, "T")
+		event.I_Date = fix[0]
+		fix2 := strings.Split(event.F_Date, "T")
+		event.F_Date = fix2[0]
 
-	// 	for rows.Next() {
+		lista = append(lista, event)
+	}
+	defer rows.Close()
 
-	// 		rows.Scan(&newTest.User, &newTest.Pass)
-
-	// 		listTest = append(listTest, newTest)
-	// 	}
-	// 	defer rows.Close()
-	// 	json.NewEncoder(w).Encode(listTest)
-// }*/
+	json.NewEncoder(w).Encode(lista)
+}
 
 func main() {
 	// routes
@@ -324,6 +342,7 @@ func main() {
 	router.HandleFunc("/login/", login).Methods("POST")
 	router.HandleFunc("/actualizar/", actualizarUsuario).Methods("POST")
 	router.HandleFunc("/test/", load).Methods("POST")
+	router.HandleFunc("/eventos/", obtenerEventos).Methods("GET")
 
 	db, err := sql.Open("godror", "admin/admin@localhost:1521/ORCLCDB.localdomain")
 	Database = db
