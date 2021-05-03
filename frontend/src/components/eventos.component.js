@@ -22,11 +22,12 @@ export default class DemoApp extends React.Component {
   
 
  
-  fixEvent(local, visit, fechaI) {    
-    let Etitle = local + ' - ' + visit;
+  fixEvent(E_id,local, visit, s_local,s_visit,fechaI) {    
+    let Etitle = local + ' - ' + visit+'\n'+s_local + ' - ' + s_visit;
     let Estart = fechaI;
     this.setState({
       calendarEvents: this.state.calendarEvents.concat({
+        id:E_id,
         title: Etitle,
         start: Estart
       })
@@ -41,7 +42,7 @@ export default class DemoApp extends React.Component {
       .then(response => {
         //localStorage.setItem('events', JSON.stringify(response.data));
         response.data.forEach(element => {
-          this.fixEvent(element.local, element.visita, element.fecha_inicio);
+          this.fixEvent(element.id,element.local, element.visita,element.m_local,element.m_visita, element.fecha_inicio);
         });
         console.log(this.state.calendarEvents);
       });
@@ -63,6 +64,7 @@ export default class DemoApp extends React.Component {
             initialView='dayGridMonth'
             editable={true}
             selectable={true}
+            eventDisplay={'block'}
             selectMirror={true}
             dayMaxEvents={true}
             eventSources={this.state.eventos}

@@ -5,8 +5,9 @@ import { BrowserRouter as Router, Switch, Route, Link } from "react-router-dom";
 import Login from "./components/login.component";
 import SignUp from "./components/signup.component";
 import Eventos from "./components/eventos.component";
-import A from "./components/load.component";
+import Carga from "./components/load.component";
 import Profile from "./components/profile.component";
+import Membresia from "./components/tier.component";
 // eslint-disable-next-line
 import axios from 'axios'
 
@@ -43,7 +44,8 @@ class App extends Component {
                 <Route exact path='/' component={Login} />
                 <Route path="/ingresar" component={Login} />
                 <Route path="/registrar" component={SignUp} />
-                <Route path="/test" component={A} />
+                <Route path="/membresia" component={Membresia} />
+                <Route path="/test" component={Carga} />
                 <Route path="/perfil" component={Profile} />
                 <div className="event-inner">
                   <Route path="/eventos" component={Eventos} />

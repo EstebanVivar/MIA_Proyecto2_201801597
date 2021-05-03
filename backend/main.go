@@ -18,6 +18,14 @@ import (
 
 var Database *sql.DB
 
+type Membresia struct {
+	Id    string `json:"id"`
+	Title string `json:"descripcion"`
+	Price string `json:"precio"`
+}
+type arrayTier []Membresia
+
+/////////////////////////
 type Evento struct {
 	Id      string `json:"id"`
 	Home    string `json:"local"`
@@ -31,6 +39,8 @@ type Evento struct {
 }
 
 type arrayEvent []Evento
+
+//////////////////////////////
 
 type Usuario struct {
 	User  string `json:"user"`
@@ -168,6 +178,7 @@ func loadTest(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
+
 func commitDB(err error) {
 	if err != nil {
 		fmt.Println("Error running query")
@@ -177,6 +188,7 @@ func commitDB(err error) {
 		Database.Exec("COMMIT;")
 	}
 }
+
 func load(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var user string
@@ -188,9 +200,9 @@ func load(w http.ResponseWriter, r *http.Request) {
 	json.NewDecoder(r.Body).Decode(&Carga)
 
 	fmt.Println("Usuarios")
-	for _, element := range Carga {
+	for key, element := range Carga {
 		_, err := Database.Exec(`CALL INSERT_USER(:1,:2, :3, :4,:5, :6, :7)`,
-			element.Name, element.Last, element.Pass, element.User, nil, nil, nil)
+			element.Name, element.Last, element.Pass, key, element.User, nil, nil)
 		commitDB(err)
 		user = element.User
 
@@ -238,6 +250,7 @@ func load(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
+
 func registrarUsuario(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var usuario Usuario
@@ -335,6 +348,26 @@ func obtenerEventos(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(lista)
 }
 
+func obtenerMembresias(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	var tier Membresia
+	var lista = arrayTier{}
+	rows, err := Database.Query("SELECT * FROM MEMBRESIA")
+	if err != nil {
+		fmt.Println("Error running query")
+		fmt.Println(err)
+		return
+	}
+	for rows.Next() {
+
+		rows.Scan(&tier.Id, &tier.Title, &tier.Price)
+		lista = append(lista, tier)
+	}
+	defer rows.Close()
+
+	json.NewEncoder(w).Encode(lista)
+}
+
 func main() {
 	// routes
 	router := mux.NewRouter()
@@ -343,6 +376,7 @@ func main() {
 	router.HandleFunc("/actualizar/", actualizarUsuario).Methods("POST")
 	router.HandleFunc("/test/", load).Methods("POST")
 	router.HandleFunc("/eventos/", obtenerEventos).Methods("GET")
+	router.HandleFunc("/membresias/", obtenerMembresias).Methods("GET")
 
 	db, err := sql.Open("godror", "admin/admin@localhost:1521/ORCLCDB.localdomain")
 	Database = db
