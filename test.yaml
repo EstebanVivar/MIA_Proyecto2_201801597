@@ -19,16 +19,7 @@ A2:
               resultado:
                 visitante: 4
                 local: 8
-            - deporte: tennis
-              fecha: 05/02/2019 22:34
-              visitante: Damara Frostick
-              local: Idell Worton
-              prediccion:
-                visitante: 7
-                local: 7
-              resultado:
-                visitante: 6
-                local: 0
+           
     - temporada: 2018-Q3
       tier: silver
       jornadas:

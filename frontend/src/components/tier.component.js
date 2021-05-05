@@ -15,11 +15,10 @@ export default class Login extends Component {
 
 
     sendGet = async () => {
-        const res = await axios
+        await axios
             .get("http://localhost:4000/membresias/")
             .then(response => {
                 this.setState({ list: response.data })
-                console.log(this.state.list)
             });
     }
 
@@ -58,22 +57,23 @@ export default class Login extends Component {
 
                 <div className="form-group">
                     <select
-                        className="custom-select"
+                        className="dropdown-toggle"
                         name="selected"
                         onChange={this.OnInputChange}
                         value={this.state.selected}
                     >
+                        <option value="" selected disabled>Selecciona tu membresia</option>
                         {this.state.list.map((valor, index) => (
                             <option key={index} value={valor.id}>
                                 {valor.descripcion}
                             </option>
                         ))}
                     </select>
-
-                    <label>Precio: Q  {this.state.precio}
-
-                    </label>
                 </div>
+                <label>
+                    Precio: Q  {this.state.precio}
+                </label>
+
 
 
                 <form onSubmit={this.onSubmit}>

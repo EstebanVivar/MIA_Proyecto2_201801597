@@ -5,6 +5,7 @@ import { BrowserRouter as Router, Switch, Route, Link } from "react-router-dom";
 import Login from "./components/login.component";
 import SignUp from "./components/signup.component";
 import Eventos from "./components/eventos.component";
+import EventosUsuario from "./components/eventosUsuario.component";
 import Carga from "./components/load.component";
 import Profile from "./components/profile.component";
 import Membresia from "./components/tier.component";
@@ -21,7 +22,7 @@ class App extends Component {
         <div className="App">
           <nav className="navbar navbar-expand-lg navbar-light fixed-top">
             <div className="container">
-              <Link className="navbar-brand" to={"/registrar"}>QUINIELAS</Link>
+              <Link className="navbar-brand" to={"/ingresar"}>QUINIELAS</Link>
               <div className="collapse navbar-collapse" id="navbarTogglerDemo02">
                 <ul className="navbar-nav ml-auto">
                   <li className="nav-item">
@@ -47,9 +48,12 @@ class App extends Component {
                 <Route path="/membresia" component={Membresia} />
                 <Route path="/test" component={Carga} />
                 <Route path="/perfil" component={Profile} />
+                <>
                 <div className="event-inner">
                   <Route path="/eventos" component={Eventos} />
+                  <Route path="/eventosUsuario" component={EventosUsuario} />
                 </div>
+                </>
               </Switch>
             </div>
 

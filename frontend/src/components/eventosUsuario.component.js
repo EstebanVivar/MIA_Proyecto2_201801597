@@ -9,48 +9,55 @@ import axios from 'axios';
 
 
 export default class DemoApp extends React.Component {
-
+  data = JSON.parse(localStorage.getItem('user'));
   state = {
     weekendsVisible: true,
     calendarEvents: [],
-    info: []
-  }
-  state2 = {
+    info: [],
     Events: []
   }
+
 
   componentDidMount() {
     this.sendGet();
   }
 
 
-  fixEvent(E_id, local, visit, s_local, s_visit, fechaI, fechaF) {
-    let Etitle = local + ' - ' + visit;
-    let Edesc = s_local + ' - ' + s_visit;
-    let Estart = fechaI
-    let Efinal = fechaF
-    this.state2.Events.push({
+  fixEvent(E_id, local, visit, s_local, s_visit, fechaI, fechaF, p_local, p_visit) {
+
+    this.state.Events.push({
       id: E_id,
-      title: Etitle,
+      title: ' ' + local + ' - ' + visit,
       local: local,
       visit: visit,
-      description: Edesc,
-      start: Estart,
-      end: Efinal
+      s_local: s_local,
+      s_visit: s_visit,
+      p_local: p_local,
+      p_visit: p_visit,
+      start: fechaI,
+      end: fechaF
     })
   }
 
 
   sendGet = async () => {
+    console.log(this.data.id)
+    const info = {
+      user: this.data.id
+    }
     await axios
-      .get("http://localhost:4000/eventos/")
+      .post("http://localhost:4000/eventosUsuario/", info)
       .then(response => {
-        response.data.forEach(element => {
-          this.fixEvent(element.id, element.local, element.visita, element.m_local, element.m_visita, element.fecha_inicio, element.fecha_final);
-        });
-        this.setState({
-          calendarEvents: this.state2.Events
-        })
+        if (response) {
+          console.log(response.data)
+          response.data.forEach(element => {
+            this.fixEvent(element.id, element.local, element.visita, element.m_local,
+              element.m_visita, element.fecha_inicio, element.fecha_final, element.p_local, element.p_visita);
+          });
+          this.setState({
+            calendarEvents: this.state.Events
+          })
+        }
       });
   }
 
@@ -88,55 +95,37 @@ export default class DemoApp extends React.Component {
   renderSidebar() {
     return (
       <div className='demo-app-sidebar'>
-       
-
-        <div className='demo-app-sidebar-section'>
-          <h2>Instructions</h2>
-          <ul>
-            <li>Select dates and you will be prompted to create a new event</li>
-            <li>Drag, drop, and resize events</li>
-            <li>Click an event to delete it</li>
-          </ul>
-        </div>
-
         <div className='demo-app-sidebar-section'>
           <div className="card text-center">
             <div className="card-header" >
+              {this.state.info.id}
             </div>
             <div className="card-body">
-              <h5 className="card-title">Local:
-                {this.state.info.local}</h5>
-                <h5 className="card-title">Visitante:
-                {this.state.info.visit}</h5>
-                Local-Visitante
-              <p className="card-text">{this.state.info.results}</p>
+              <h6 className="card-title">Local: {this.state.info.local}</h6>
+              <h6 className="card-title">Visitante: {this.state.info.visit} </h6>
+              <p className="card-text"> Local - Visitante <br />{this.state.info.s_local} - {this.state.info.s_visit} </p>
               <div className="form-group">
-                    <label>Local</label>
-                    <input type="text" name="usuario" value={this.state.user} onChange={this.OnInputChange} className="form-control" placeholder="Ingrese su nombre de usuario" />
-                </div>
+                <h4>Prediccion</h4>
+                <label>Local</label>
+                <input type="text" name="p_local" value={this.state.info.p_local} onChange={this.OnInputChange} className="form-control" placeholder="Ingrese su nombre de usuario" />
+              </div>
 
-                <div className="form-group">
-                    <label>Visitante</label>
-                    <input type="password" name="clave" value={this.state.pass} onChange={this.OnInputChange} className="form-control" placeholder="Ingrese su contraseña" />
-                </div>
+              <div className="form-group">
+                <label>Visitante</label>
+                <input type="text" name="p_visit" value={this.state.info.p_visit} onChange={this.OnInputChange} className="form-control" placeholder="Ingrese su contraseña" />
+              </div>
 
-                <form onSubmit={this.onSubmit}>
+              <form onSubmit={this.onSubmit}>
 
-                    <button type="submit" className="btn btn-primary btn-block">Ingresar</button>
+                <button type="submit" className="btn btn-primary btn-block">Ingresar</button>
 
-                </form>
+              </form>
             </div>
             <div className="card-footer text-muted">
               {this.state.info.end}
             </div>
           </div>
-        </div>
-        {/* <div className='demo-app-sidebar-section'>
-          <h2>All Events ({this.state.calendarEvents.length})</h2>
-          <ul>
-            {this.state.calendarEvents.map(renderSidebarEvent)}
-          </ul>
-        </div> */}
+        </div>        
       </div>
     )
   }
@@ -181,12 +170,15 @@ export default class DemoApp extends React.Component {
     return (
       this.setState({
         info: {
-          end: Intl.DateTimeFormat('es-ES', this.options).format(clickInfo.event.start),
+          end: Intl.DateTimeFormat('es-ES', this.options).format(clickInfo.event.end),
           title: clickInfo.event.title,
           id: clickInfo.event.id,
-          results: clickInfo.event._def.extendedProps.description,
+          local: clickInfo.event._def.extendedProps.local,
           visit: clickInfo.event._def.extendedProps.visit,
-          local: clickInfo.event._def.extendedProps.local
+          s_local: clickInfo.event._def.extendedProps.s_local,
+          s_visit: clickInfo.event._def.extendedProps.s_visit,
+          p_local: clickInfo.event._def.extendedProps.p_local,
+          p_visit: clickInfo.event._def.extendedProps.p_visit
         }
       }))
   }
@@ -210,7 +202,7 @@ function renderEventContent(eventInfo) {
 //   )
 // }
 function renderCardEvent(event) {
-  console.log(event.event.start)
+  console.log(event)
   return (
 
     <i>{event.event.title}</i>

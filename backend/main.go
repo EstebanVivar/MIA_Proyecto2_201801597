@@ -18,12 +18,35 @@ import (
 
 var Database *sql.DB
 
+type EventoParametros struct {
+	IdUser int `json:"user"`
+}
+
+////////////////////////////
+
 type Membresia struct {
 	Id    string `json:"id"`
 	Title string `json:"descripcion"`
 	Price string `json:"precio"`
 }
 type arrayTier []Membresia
+
+///////////////////////////
+type EventoRetorno struct {
+	Id      string `json:"id"`
+	Home    string `json:"local"`
+	Visit   string `json:"visita"`
+	I_Date  string `json:"fecha_inicio"`
+	F_Date  string `json:"fecha_final"`
+	S_Home  string `json:"m_local"`
+	S_Visit string `json:"m_visita"`
+	Journey string `json:"jornada"`
+	Sport   string `json:"deporte"`
+	P_Home  string `json:"p_local"`
+	P_Visit string `json:"p_visita"`
+}
+
+type arrayEventReturn []EventoRetorno
 
 /////////////////////////
 type Evento struct {
@@ -200,9 +223,9 @@ func load(w http.ResponseWriter, r *http.Request) {
 	json.NewDecoder(r.Body).Decode(&Carga)
 
 	fmt.Println("Usuarios")
-	for key, element := range Carga {
+	for _, element := range Carga {
 		_, err := Database.Exec(`CALL INSERT_USER(:1,:2, :3, :4,:5, :6, :7)`,
-			element.Name, element.Last, element.Pass, key, element.User, nil, nil)
+			element.Name, element.Last, element.Pass, element.User, nil, element.User, nil)
 		commitDB(err)
 		user = element.User
 
@@ -320,7 +343,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(User)
 }
 
-func obtenerEventos(w http.ResponseWriter, r *http.Request) {
+func obtenerEventosAdmin(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var event Evento
 	var lista = arrayEvent{}
@@ -335,19 +358,69 @@ func obtenerEventos(w http.ResponseWriter, r *http.Request) {
 		rows.Scan(&event.Id, &event.Home, &event.Visit,
 			&event.I_Date, &event.S_Home, &event.S_Visit,
 			&event.Journey, &event.Sport, &event.F_Date)
-
-		fix := strings.Split(event.I_Date, "T")
-		event.I_Date = fix[0]
-		fix2 := strings.Split(event.F_Date, "T")
-		event.F_Date = fix2[0]
-
+		Inicio := strings.Split(event.I_Date, "Z")
+		event.I_Date = Inicio[0]
+		Final := strings.Split(event.F_Date, "Z")
+		event.F_Date = Final[0]
 		lista = append(lista, event)
 	}
 	defer rows.Close()
 
 	json.NewEncoder(w).Encode(lista)
 }
+func obtenerEventosUser(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	var eventUser EventoParametros
+	_ = json.NewDecoder(r.Body).Decode(&eventUser)
+	fmt.Println("//////////////////////////////////")
+	fmt.Println(strconv.Itoa(eventUser.IdUser))
+	fmt.Println("//////////////////////////////////")
+	var event EventoRetorno
+	var lista = arrayEventReturn{}
 
+	rows, err := Database.Query(" SELECT "+
+		" EVENTO.ID_EVENTO, EVENTO.LOCAL, EVENTO.VISITANTE, "+
+		" EVENTO.FECHA_INICIO, EVENTO.MARCADOR_LOCAL, EVENTO.MARCADOR_VISITA, "+
+		" EVENTO.ID_JORNADA, EVENTO.ID_DEPORTE, EVENTO.FECHA_FIN, PREDICCION.LOCAL, PREDICCION.VISITANTE "+
+		" FROM EVENTO "+
+		" INNER JOIN PREDICCION "+
+		" ON PREDICCION.ID_EVENTO = EVENTO.ID_EVENTO "+
+		" INNER JOIN USUARIO "+
+		" ON PREDICCION.ID_USUARIO = USUARIO.ID_USUARIO "+
+		" WHERE USUARIO.ID_USUARIO = :1", strconv.Itoa(eventUser.IdUser))
+	if err != nil {
+		fmt.Println("Error running query")
+		fmt.Println(err)
+		return
+	}
+	for rows.Next() {
+		fmt.Println(rows)
+
+		rows.Scan(&event.Id, &event.Home, &event.Visit,
+			&event.I_Date, &event.S_Home, &event.S_Visit,
+			&event.Journey, &event.Sport, &event.F_Date, &event.P_Home, &event.P_Visit)
+		Inicio := strings.Split(event.I_Date, "Z")
+		event.I_Date = Inicio[0]
+		Final := strings.Split(event.F_Date, "Z")
+		event.F_Date = Final[0]
+		lista = append(lista, event)
+		fmt.Println("/////////////////////")
+		fmt.Println(event.Id)
+		fmt.Println(event.Home)
+		fmt.Println(event.Visit)
+		fmt.Println(event.I_Date)
+		fmt.Println(event.S_Home)
+		fmt.Println(event.S_Visit)
+		fmt.Println(event.Journey)
+		fmt.Println(event.Sport)
+		fmt.Println(event.F_Date)
+		fmt.Println(event.P_Home)
+		fmt.Println(event.P_Visit)
+	}
+	defer rows.Close()
+
+	json.NewEncoder(w).Encode(lista)
+}
 func obtenerMembresias(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var tier Membresia
@@ -375,7 +448,8 @@ func main() {
 	router.HandleFunc("/login/", login).Methods("POST")
 	router.HandleFunc("/actualizar/", actualizarUsuario).Methods("POST")
 	router.HandleFunc("/test/", load).Methods("POST")
-	router.HandleFunc("/eventos/", obtenerEventos).Methods("GET")
+	router.HandleFunc("/eventos/", obtenerEventosAdmin).Methods("GET")
+	router.HandleFunc("/eventosUsuario/", obtenerEventosUser).Methods("POST")
 	router.HandleFunc("/membresias/", obtenerMembresias).Methods("GET")
 
 	db, err := sql.Open("godror", "admin/admin@localhost:1521/ORCLCDB.localdomain")
