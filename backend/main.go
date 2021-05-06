@@ -218,6 +218,7 @@ func load(w http.ResponseWriter, r *http.Request) {
 	var season string
 	var tier string
 	var journey string
+	
 
 	var Carga Info
 	json.NewDecoder(r.Body).Decode(&Carga)
@@ -264,9 +265,9 @@ func load(w http.ResponseWriter, r *http.Request) {
 						element.Result.R_visitant, journey, season, element.Sport)
 					commitDB(er)
 
-					_, e := Database.Exec(`CALL CARGA_PREDICCION(:1,:2,:3,:4,:5,:6,:7)`,
+					_, e := Database.Exec(`CALL CARGA_PREDICCION(:1,:2,:3,:4,:5,:6,:7,:8,:9)`,
 						element.Prediction.P_local, element.Prediction.P_visitant, user,
-						journey, season, element.Local, element.Visit)
+						journey, season, element.Local, element.Visit,element.Date,element.Sport)
 					commitDB(e)
 				}
 			}

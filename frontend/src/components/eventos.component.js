@@ -11,7 +11,6 @@ import axios from 'axios';
 export default class DemoApp extends React.Component {
 
   state = {
-    weekendsVisible: true,
     calendarEvents: [],
     info: []
   }
@@ -68,17 +67,8 @@ export default class DemoApp extends React.Component {
               right: 'dayGridMonth,timeGridWeek'
             }}
             locale={esLocale}
-            initialView='dayGridMonth'
-            editable={false}
-            selectable={true}
-            eventDisplay={'block'}
-            selectMirror={true}
-            dayMaxEvents={true}
-            weekends={this.state.weekendsVisible}
-            select={this.handleDateSelect}
-            eventContent={renderEventContent}
+            initialView='dayGridMonth'            
             eventClick={this.handleEventClick}
-            eventsSet={this.handleEvents}
             events={this.state.calendarEvents}
           />
         </div>
@@ -142,27 +132,8 @@ export default class DemoApp extends React.Component {
   }
 
 
-  handleWeekendsToggle = () => {
-    this.setState({
-      weekendsVisible: !this.state.weekendsVisible
-    })
-  }
+  
 
-  handleDateSelect = (selectInfo) => {
-    let title = prompt('Please enter a new title for your event')
-    let calendarApi = selectInfo.view.calendar
-
-    calendarApi.unselect() // clear date selection
-
-    if (title) {
-      calendarApi.addEvent({
-        title,
-        start: selectInfo.startStr,
-        end: selectInfo.endStr,
-        allDay: selectInfo.allDay
-      })
-    }
-  }
 
 
   options = {
@@ -195,7 +166,7 @@ export default class DemoApp extends React.Component {
 function renderEventContent(eventInfo) {
   return (
     <>
-      <b>{eventInfo.timeText}</b>
+      {/* <b>{eventInfo.timeText}</b> */}
       <i>{eventInfo.event.title}</i>
     </>
   )
