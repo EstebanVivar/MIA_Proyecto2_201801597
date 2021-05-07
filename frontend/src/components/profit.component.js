@@ -2,7 +2,7 @@ import React, { Component } from "react";
 import axios from "axios";
 import { Line } from "react-chartjs-2";
 
-export default class RepoOjiva extends Component {
+export default class Profit extends Component {
     state = {
         labels: [],
         data: [],
