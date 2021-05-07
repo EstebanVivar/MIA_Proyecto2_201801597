@@ -1,5 +1,5 @@
 
-import React from 'react'
+import React,{Component} from 'react'
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
@@ -8,7 +8,7 @@ import esLocale from '@fullcalendar/core/locales/es';
 import axios from 'axios';
 
 
-export default class DemoApp extends React.Component {
+export default class EventosUsuario extends Component {
   data = JSON.parse(localStorage.getItem('user'));
   state = {
     weekendsVisible: true,
@@ -64,9 +64,9 @@ export default class DemoApp extends React.Component {
 
   render() {
     return (
-      <div className='demo-app'>
+      <div className='eventos-app'>
         {this.renderSidebar()}
-        <div className='demo-app-main'>
+        <div className='eventos-app-main'>
           <FullCalendar
             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
             headerToolbar={{
@@ -94,8 +94,8 @@ export default class DemoApp extends React.Component {
   }
   renderSidebar() {
     return (
-      <div className='demo-app-sidebar'>
-        <div className='demo-app-sidebar-section'>
+      <div className='eventos-app-sidebar'>
+        <div className='eventos-app-sidebar-section'>
           <div className="card text-center">
             <div className="card-header" >
               {this.state.info.id}
@@ -125,7 +125,7 @@ export default class DemoApp extends React.Component {
               {this.state.info.end}
             </div>
           </div>
-        </div>        
+        </div>
       </div>
     )
   }

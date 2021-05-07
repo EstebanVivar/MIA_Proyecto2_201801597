@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math"
 	"strconv"
 	"strings"
 
@@ -20,6 +21,14 @@ var Database *sql.DB
 
 type EventoParametros struct {
 	IdUser int `json:"user"`
+}
+type GananciasParametros struct {
+	Year string `json:"year"`
+}
+
+type Grafica struct {
+	X []string `json:"labels"`
+	Y []int    `json:"data"`
 }
 
 ////////////////////////////
@@ -218,7 +227,6 @@ func load(w http.ResponseWriter, r *http.Request) {
 	var season string
 	var tier string
 	var journey string
-	
 
 	var Carga Info
 	json.NewDecoder(r.Body).Decode(&Carga)
@@ -265,14 +273,32 @@ func load(w http.ResponseWriter, r *http.Request) {
 						element.Result.R_visitant, journey, season, element.Sport)
 					commitDB(er)
 
-					_, e := Database.Exec(`CALL CARGA_PREDICCION(:1,:2,:3,:4,:5,:6,:7,:8,:9)`,
+					_, e := Database.Exec(`CALL CARGA_PREDICCION(:1,:2,:3,:4,:5,:6,:7,:8,:9,:10)`,
 						element.Prediction.P_local, element.Prediction.P_visitant, user,
-						journey, season, element.Local, element.Visit,element.Date,element.Sport)
+						journey, season, element.Local, element.Visit, element.Date, element.Sport,
+						punteo(element.Result.R_local,
+							element.Prediction.P_local,
+							element.Result.R_visitant,
+							element.Prediction.P_visitant))
 					commitDB(e)
 				}
 			}
 		}
 	}
+}
+func punteo(resultado_local, prediccion_local, resultado_visita, prediccion_visita int) int {
+	if resultado_local == prediccion_local && resultado_visita == prediccion_visita {
+		return 10
+	} else if (resultado_local >= resultado_visita && prediccion_local >= prediccion_visita) || (resultado_local <= resultado_visita && prediccion_local <= prediccion_visita) {
+		results := float64(resultado_local + resultado_visita)
+		predics := float64(prediccion_local + prediccion_visita)
+		sum := math.Abs(results - predics)
+		if sum <= 2 {
+			return 5
+		}
+		return 3
+	}
+	return 0
 }
 
 func registrarUsuario(w http.ResponseWriter, r *http.Request) {
@@ -422,6 +448,107 @@ func obtenerEventosUser(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(lista)
 }
+func obtenerOjiva(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	var datos Grafica
+	var minimo int
+	var maximo int
+	var contador int
+
+	Database.QueryRow(" SELECT SUM(MEMBRESIA.PRECIO) *0.20 " +
+		" from DETALLE_MEMBRESIA " +
+		" INNER JOIN TEMPORADA  " +
+		" ON DETALLE_MEMBRESIA.ID_TEMPORADA =TEMPORADA.ID_TEMPORADA " +
+		" INNER JOIN MEMBRESIA " +
+		" ON DETALLE_MEMBRESIA.ID_MEMBRESIA=MEMBRESIA.ID_MEMBRESIA " +
+		" GROUP BY TEMPORADA.NOMBRE " +
+		" order by SUM(MEMBRESIA.PRECIO) ASC " +
+		" FETCH FIRST 1 ROW ONLY ").Scan(&minimo)
+
+	Database.QueryRow(" SELECT SUM(MEMBRESIA.PRECIO) *0.20 " +
+		" from DETALLE_MEMBRESIA " +
+		" INNER JOIN TEMPORADA  " +
+		" ON DETALLE_MEMBRESIA.ID_TEMPORADA =TEMPORADA.ID_TEMPORADA " +
+		" INNER JOIN MEMBRESIA " +
+		" ON DETALLE_MEMBRESIA.ID_MEMBRESIA=MEMBRESIA.ID_MEMBRESIA " +
+		" GROUP BY TEMPORADA.NOMBRE " +
+		" order by SUM(MEMBRESIA.PRECIO) DESC " +
+		" FETCH FIRST 1 ROW ONLY").Scan(&maximo)
+
+	datos.X = append(datos.X, strconv.Itoa(0))
+	datos.Y = append(datos.Y, 0)
+	for minimo < maximo+250 {
+
+		Database.QueryRow(` SELECT COUNT(MEMBERSHIP.GANANCIA) 
+							from (
+							SELECT SUM(MEMBRESIA.PRECIO)*0.20 GANANCIA, TEMPORADA.NOMBRE 
+							FROM TEMPORADA 
+							INNER JOIN DETALLE_MEMBRESIA 
+							ON DETALLE_MEMBRESIA.ID_TEMPORADA = TEMPORADA.ID_TEMPORADA
+							INNER JOIN MEMBRESIA 
+							ON MEMBRESIA.ID_MEMBRESIA = DETALLE_MEMBRESIA.ID_MEMBRESIA
+							GROUP BY TEMPORADA.NOMBRE
+							) MEMBERSHIP
+							WHERE GANANCIA <= :1`, minimo).Scan(&contador)
+		datos.X = append(datos.X, strconv.Itoa(minimo))
+		datos.Y = append(datos.Y, contador)
+		minimo += 250
+	}
+	json.NewEncoder(w).Encode(datos)
+}
+
+func obtenerGanancias(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	var datos Grafica
+
+	var x string
+	var y int
+
+	rows, _ := Database.Query(`SELECT SUM(MEMBRESIA.PRECIO)*0.20 GANANCIA, TEMPORADA.NOMBRE 
+	FROM TEMPORADA 
+	INNER JOIN DETALLE_MEMBRESIA 
+	ON DETALLE_MEMBRESIA.ID_TEMPORADA = TEMPORADA.ID_TEMPORADA
+	INNER JOIN MEMBRESIA 
+	ON MEMBRESIA.ID_MEMBRESIA = DETALLE_MEMBRESIA.ID_MEMBRESIA
+	GROUP BY TEMPORADA.ANYO,TEMPORADA.MES,TEMPORADA.NOMBRE 
+	ORDER BY TEMPORADA.ANYO,TEMPORADA.MES ASC`)
+	for rows.Next() {
+		rows.Scan(&y, &x)
+		datos.X = append(datos.X, x)
+		datos.Y = append(datos.Y, y)
+
+	}
+	json.NewEncoder(w).Encode(datos)
+}
+
+func obtenerGananciasYear(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	var year GananciasParametros
+	_ = json.NewDecoder(r.Body).Decode(&year)
+	fmt.Println(year.Year)
+	var datos Grafica
+	var x string
+	var y int
+
+	rows, _ := Database.Query(`SELECT SUM(MEMBRESIA.PRECIO)*0.20 GANANCIA, TEMPORADA.NOMBRE 
+	FROM TEMPORADA 
+	INNER JOIN DETALLE_MEMBRESIA 
+	ON DETALLE_MEMBRESIA.ID_TEMPORADA = TEMPORADA.ID_TEMPORADA
+	INNER JOIN MEMBRESIA 
+	ON MEMBRESIA.ID_MEMBRESIA = DETALLE_MEMBRESIA.ID_MEMBRESIA
+	WHERE TEMPORADA.ANYO=:1
+	GROUP BY TEMPORADA.ANYO,TEMPORADA.MES,TEMPORADA.NOMBRE 
+	ORDER BY TEMPORADA.ANYO,TEMPORADA.MES ASC`, year.Year)
+	for rows.Next() {
+		rows.Scan(&y, &x)
+		datos.X = append(datos.X, x)
+		datos.Y = append(datos.Y, y)
+
+	}
+	json.NewEncoder(w).Encode(datos)
+}
 func obtenerMembresias(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var tier Membresia
@@ -452,6 +579,10 @@ func main() {
 	router.HandleFunc("/eventos/", obtenerEventosAdmin).Methods("GET")
 	router.HandleFunc("/eventosUsuario/", obtenerEventosUser).Methods("POST")
 	router.HandleFunc("/membresias/", obtenerMembresias).Methods("GET")
+	router.HandleFunc("/ojiva/", obtenerOjiva).Methods("GET")
+	router.HandleFunc("/ganancias/", obtenerGanancias).Methods("GET")
+
+	router.HandleFunc("/gananciasY/", obtenerGananciasYear).Methods("POST")
 
 	db, err := sql.Open("godror", "admin/admin@localhost:1521/ORCLCDB.localdomain")
 	Database = db

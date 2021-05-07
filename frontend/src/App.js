@@ -9,8 +9,9 @@ import EventosUsuario from "./components/eventosUsuario.component";
 import Carga from "./components/load.component";
 import Profile from "./components/profile.component";
 import Membresia from "./components/tier.component";
-// eslint-disable-next-line
-import axios from 'axios'
+import Ojiva from "./components/ojiva.component";
+import Ganancias from "./components/profit.component";
+
 
 class App extends Component {
   render() {
@@ -48,6 +49,8 @@ class App extends Component {
                 <Route path="/membresia" component={Membresia} />
                 <Route path="/test" component={Carga} />
                 <Route path="/perfil" component={Profile} />
+                <Route path="/ojiva" component={Ojiva} />
+                <Route path="/ganancias" component={Ganancias} />
                 <>
                 <div className="event-inner">
                   <Route path="/eventos" component={Eventos} />
