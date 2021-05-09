@@ -32,7 +32,7 @@ export default class Profit extends Component {
         const anyo = {
             year: this.state.year
         }
-        const res = await axios.post("http://localhost:4000/gananciasY/", anyo)
+        await axios.post("http://localhost:4000/gananciasY/", anyo)
             .then(response => {
                 console.log(response)
                 this.setState({

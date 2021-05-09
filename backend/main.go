@@ -30,6 +30,10 @@ type Grafica struct {
 	X []string `json:"labels"`
 	Y []int    `json:"data"`
 }
+type GraficaPie struct {
+	Data  [3]int    `json:"data"`
+	Color [3]string `json:"backgroundColor"`
+}
 type GraficaStack struct {
 	Membership string `json:"label"`
 	Count      [3]int `json:"data"`
@@ -46,6 +50,11 @@ type Membresia struct {
 	Price string `json:"precio"`
 }
 type arrayTier []Membresia
+
+type Temporada struct {
+	Season string `json:"nombre"`
+}
+type arraySeason []Temporada
 
 ///////////////////////////
 type EventoRetorno struct {
@@ -293,12 +302,18 @@ func load(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
-func punteo(resultado_local, prediccion_local, resultado_visita, prediccion_visita int) int {
-	if resultado_local == prediccion_local && resultado_visita == prediccion_visita {
+
+func punteo(r_local, p_local, r_visita, p_visita int) int {
+	if r_local == p_local && r_visita == p_visita {
 		return 10
-	} else if (resultado_local >= resultado_visita && prediccion_local >= prediccion_visita) || (resultado_local <= resultado_visita && prediccion_local <= prediccion_visita) {
-		results := float64(resultado_local + resultado_visita)
-		predics := float64(prediccion_local + prediccion_visita)
+	} else if (r_local >= r_visita && p_local >= p_visita) ||
+		(r_local <= r_visita && p_local <= p_visita) {
+		if (r_local == r_visita && p_local != p_visita) ||
+			(r_local != r_visita && p_local == p_visita) {
+			return 0
+		}
+		results := float64(r_local + r_visita)
+		predics := float64(p_local + p_visita)
 		sum := math.Abs(results - predics)
 		if sum <= 2 {
 			return 5
@@ -402,6 +417,7 @@ func obtenerEventosAdmin(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(lista)
 }
+
 func obtenerEventosUser(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var eventUser EventoParametros
@@ -455,6 +471,7 @@ func obtenerEventosUser(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(lista)
 }
+
 func obtenerOjiva(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -504,102 +521,212 @@ func obtenerOjiva(w http.ResponseWriter, r *http.Request) {
 	}
 	json.NewEncoder(w).Encode(datos)
 }
+
+func obtenerPerdedores(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	var season Temporada
+	_ = json.NewDecoder(r.Body).Decode(&season)
+	var membresia string
+	var porcentaje int
+	var pastel GraficaPie
+	rows, _ := Database.Query(`SELECT
+								MEMBERS,
+								COUNT(*)
+								FROM
+									(
+										SELECT
+											MEMBERS,(
+												DENSE_RANK() OVER(
+													PARTITION BY TEMPORADA
+													ORDER BY
+														PUNTOS DESC
+												)
+											) AS RANKING
+										FROM(
+												SELECT
+													SUM(P.PUNTAJE) PUNTOS,
+													T.NOMBRE TEMPORADA,
+													M.NOMBRE MEMBERS
+												FROM
+													PREDICCION P
+													INNER JOIN USUARIO U ON P.ID_USUARIO = U.ID_USUARIO
+													INNER JOIN DETALLE_MEMBRESIA DM ON DM.ID_USUARIO = U.ID_USUARIO
+													INNER JOIN TEMPORADA T ON T.ID_TEMPORADA = DM.ID_TEMPORADA
+													INNER JOIN JORNADA J ON J.ID_TEMPORADA = T.ID_TEMPORADA
+													INNER JOIN EVENTO E ON E.ID_EVENTO = P.ID_EVENTO
+													AND E.ID_JORNADA = J.ID_JORNADA
+													INNER JOIN MEMBRESIA M ON M.ID_MEMBRESIA = DM.ID_MEMBRESIA
+												GROUP BY
+													U.ID_USUARIO,
+													M.NOMBRE,
+													T.NOMBRE
+													HAVING T.NOMBRE=:1
+											)
+									)
+									WHERE
+									RANKING > 3
+								GROUP BY
+								MEMBERS`, season.Season)
+	for rows.Next() {
+		rows.Scan(&membresia, &porcentaje)
+
+		if membresia == "bronze" {
+			pastel.Color[0] = "#D2691E"
+			pastel.Data[0] = porcentaje
+		} else if membresia == "silver" {
+			pastel.Color[1] = "#C0C0C0"
+			pastel.Data[1] = porcentaje
+		} else if membresia == "gold" {
+			pastel.Color[2] = "#FFD700"
+			pastel.Data[2] = porcentaje
+		}
+
+	}
+	fmt.Println(pastel)
+	json.NewEncoder(w).Encode(pastel)
+}
+
 func obtenerGanadores(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	var datos [3]GraficaStack
-	// var lista = arrayStack{}
 
 	var ranking int
 	var membresia string
 	var conteo int
 
-	rows, _ := Database.Query(`SELECT RANKING,MEMBERS,COUNT(*)
-	FROM (
-		SELECT MEMBERS,(ROW_NUMBER() OVER(PARTITION BY TEMPORADA ORDER BY PUNTOS DESC)) AS RANKING
-			FROM(
-					SELECT
-						DISTINCT SUM(PREDICCION.PUNTAJE) PUNTOS,
-						DETALLE_MEMBRESIA.ID_TEMPORADA TEMPORADA,
-						MEMBRESIA.NOMBRE MEMBERS
-	
-					FROM
-						PREDICCION
-						INNER JOIN USUARIO ON PREDICCION.ID_USUARIO = USUARIO.ID_USUARIO
-						INNER JOIN DETALLE_MEMBRESIA ON DETALLE_MEMBRESIA.ID_USUARIO = USUARIO.ID_USUARIO
-						INNER JOIN JORNADA ON JORNADA.ID_TEMPORADA = DETALLE_MEMBRESIA.ID_TEMPORADA
-						INNER JOIN EVENTO ON EVENTO.ID_EVENTO = PREDICCION.ID_PREDICCION
-						AND EVENTO.ID_JORNADA = JORNADA.ID_JORNADA
-						INNER JOIN MEMBRESIA ON MEMBRESIA.ID_MEMBRESIA = DETALLE_MEMBRESIA.ID_MEMBRESIA
-					GROUP BY
-						USUARIO.ID_USUARIO,
-						DETALLE_MEMBRESIA.ID_TEMPORADA,
-						MEMBRESIA.NOMBRE                
-				)
-		)
-	GROUP BY RANKING,MEMBERS
-	HAVING
-		RANKING <= 3`)
+	rows, _ := Database.Query(`
+							SELECT
+								MEMBERS,
+								COUNT(*) /(
+									SELECT
+										COUNT(*)
+									FROM
+										(
+											SELECT
+												(
+													DENSE_RANK() OVER(
+														PARTITION BY TEMPORADASQ
+														ORDER BY
+															PUNTOSSQ DESC
+													)
+												) AS RANKINGSQ
+											FROM(
+													SELECT
+														SUM(PSQ.PUNTAJE) PUNTOSSQ,
+														TSQ.ID_TEMPORADA TEMPORADASQ
+													FROM
+														PREDICCION PSQ
+														INNER JOIN USUARIO USQ ON PSQ.ID_USUARIO = USQ.ID_USUARIO
+														INNER JOIN EVENTO ESQ ON PSQ.ID_EVENTO = ESQ.ID_EVENTO
+														INNER JOIN JORNADA JSQ ON JSQ.ID_JORNADA = ESQ.ID_JORNADA
+														INNER JOIN TEMPORADA TSQ ON JSQ.ID_TEMPORADA = TSQ.ID_TEMPORADA
+													GROUP BY
+														TSQ.ID_TEMPORADA,
+														USQ.ID_USUARIO
+													ORDER BY
+														TSQ.ID_TEMPORADA ASC,
+														SUM(PSQ.PUNTAJE) DESC
+												)
+										)
+									WHERE
+										RANKINGSQ > 3
+								)
+							FROM
+								(
+									SELECT
+										MEMBERS,(
+											DENSE_RANK() OVER(
+												PARTITION BY TEMPORADA
+												ORDER BY
+													PUNTOS DESC
+											)
+										) AS RANKING
+									FROM(
+											SELECT
+												SUM(P.PUNTAJE) PUNTOS,
+												T.ID_TEMPORADA TEMPORADA,
+												M.NOMBRE MEMBERS
+											FROM
+												PREDICCION P
+												INNER JOIN USUARIO U ON P.ID_USUARIO = U.ID_USUARIO
+												INNER JOIN DETALLE_MEMBRESIA DM ON DM.ID_USUARIO = U.ID_USUARIO
+												INNER JOIN TEMPORADA T ON T.ID_TEMPORADA = DM.ID_TEMPORADA
+												INNER JOIN JORNADA J ON J.ID_TEMPORADA = T.ID_TEMPORADA
+												INNER JOIN EVENTO E ON E.ID_EVENTO = P.ID_EVENTO
+												AND E.ID_JORNADA = J.ID_JORNADA
+												INNER JOIN MEMBRESIA M ON M.ID_MEMBRESIA = DM.ID_MEMBRESIA
+											GROUP BY
+												U.ID_USUARIO,
+												M.NOMBRE,
+												T.ID_TEMPORADA
+										)
+								)
+							WHERE
+								RANKING > 3
+							GROUP BY
+							MEMBERS;`)
 	for rows.Next() {
 		rows.Scan(&ranking, &membresia, &conteo)
+		fmt.Println(ranking, membresia, conteo)
 		if ranking == 1 {
 			if membresia == "bronze" {
-				datos[0].Color="#d2691e"
-				datos[0].Stack="Stack"
+				datos[0].Color = "#D2691E"
+				datos[0].Stack = "Stack"
 				datos[0].Count[0] = conteo
 				datos[0].Membership = membresia
 			} else if membresia == "silver" {
-				datos[1].Color="#C0C0C0"
-				datos[1].Stack="Stack"
+				datos[1].Color = "#C0C0C0"
+				datos[1].Stack = "Stack"
 				datos[1].Count[0] = conteo
 				datos[1].Membership = membresia
 			} else if membresia == "gold" {
-				datos[2].Color="#ffd700"
-				datos[2].Stack="Stack"
+				datos[2].Color = "#FFD700"
+				datos[2].Stack = "Stack"
 				datos[2].Count[0] = conteo
 				datos[2].Membership = membresia
 			}
 		} else if ranking == 2 {
 			if membresia == "bronze" {
-				datos[0].Color="#d2691e"
-				datos[0].Stack="Stack"
+				datos[0].Color = "#D2691E"
+				datos[0].Stack = "Stack"
 				datos[0].Count[1] = conteo
 				datos[0].Membership = membresia
 			} else if membresia == "silver" {
-				datos[1].Color="#C0C0C0"
-				datos[1].Stack="Stack"
+				datos[1].Color = "#C0C0C0"
+				datos[1].Stack = "Stack"
 				datos[1].Count[1] = conteo
 				datos[1].Membership = membresia
 			} else if membresia == "gold" {
-				datos[2].Color="#ffd700"
-				datos[2].Stack="Stack"
+				datos[2].Color = "#FFD700"
+				datos[2].Stack = "Stack"
 				datos[2].Count[1] = conteo
 				datos[2].Membership = membresia
 			}
 		} else if ranking == 3 {
 			if membresia == "bronze" {
-				datos[0].Color="#d2691e"
-				datos[0].Stack="Stack"
+				datos[0].Color = "#D2691E"
+				datos[0].Stack = "Stack"
 				datos[0].Count[2] = conteo
 				datos[0].Membership = membresia
 			} else if membresia == "silver" {
-				datos[2].Color="#C0C0C0"
-				datos[1].Stack="Stack"
+				datos[1].Color = "#C0C0C0"
+				datos[1].Stack = "Stack"
 				datos[1].Count[2] = conteo
 				datos[1].Membership = membresia
 			} else if membresia == "gold" {
-				datos[2].Color="#ffd700"
-				datos[2].Stack="Stack"
+				datos[2].Color = "#FFD700"
+				datos[2].Stack = "Stack"
 				datos[2].Count[2] = conteo
 				datos[2].Membership = membresia
 			}
 		}
-
-		// lista = append(lista, datos)
 	}
 	fmt.Println(datos)
 	json.NewEncoder(w).Encode(datos)
 }
+
 func obtenerGanancias(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -629,7 +756,6 @@ func obtenerGananciasYear(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var year GananciasParametros
 	_ = json.NewDecoder(r.Body).Decode(&year)
-	fmt.Println(year.Year)
 	var datos Grafica
 	var x string
 	var y int
@@ -671,6 +797,26 @@ func obtenerMembresias(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(lista)
 }
 
+func obtenerTemporadas(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	var season Temporada
+	var lista = arraySeason{}
+	rows, err := Database.Query("SELECT NOMBRE FROM TEMPORADA ORDER BY  ANYO ASC,MES ASC")
+	if err != nil {
+		fmt.Println("Error running query")
+		fmt.Println(err)
+		return
+	}
+	for rows.Next() {
+
+		rows.Scan(&season.Season)
+		lista = append(lista, season)
+	}
+	defer rows.Close()
+
+	json.NewEncoder(w).Encode(lista)
+}
+
 func main() {
 	// routes
 	router := mux.NewRouter()
@@ -685,6 +831,8 @@ func main() {
 	router.HandleFunc("/ganancias/", obtenerGanancias).Methods("GET")
 	router.HandleFunc("/gananciasY/", obtenerGananciasYear).Methods("POST")
 	router.HandleFunc("/ganadores/", obtenerGanadores).Methods("GET")
+	router.HandleFunc("/perdedores/", obtenerPerdedores).Methods("POST")
+	router.HandleFunc("/temporadas/", obtenerTemporadas).Methods("GET")
 
 	db, err := sql.Open("godror", "admin/admin@localhost:1521/ORCLCDB.localdomain")
 	Database = db

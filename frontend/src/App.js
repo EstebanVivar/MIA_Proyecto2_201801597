@@ -12,6 +12,7 @@ import Membresia from "./components/tier.component";
 import Ojiva from "./components/ojiva.component";
 import Ganancias from "./components/profit.component";
 import Ganadores from "./components/winners.component";
+import Perdedores from "./components/losers.component";
 
 
 class App extends Component {
@@ -54,6 +55,7 @@ class App extends Component {
                 <Route path="/ganancias" component={Ganancias} />
 
                 <Route path="/ganadores" component={Ganadores} />
+                <Route path="/perdedores" component={Perdedores} />
                 <>
                 <div className="event-inner">
                   <Route path="/eventos" component={Eventos} />
