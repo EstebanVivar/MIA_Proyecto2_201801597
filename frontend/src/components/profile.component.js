@@ -80,8 +80,7 @@ export default class Profile extends Component {
                     </div>
 
 
-                    <div className="row mb-4">
-                        <div className="col-md-6">
+                    
                             <div className="form-group">
                                 <label >Cambiar contraseña Actual</label>
                                 <input type="password" name="clave" value={this.state.clave} onChange={this.OnInputChange} className="form-control" />
@@ -95,19 +94,8 @@ export default class Profile extends Component {
                             </div>
                         </div>
 
-                        <div className="col-md-6">
-                            <p className="mb-2">Requisitos para la contraseña</p>
-                            <p className="small text-muted mb-2">Para crear una nueva contraseña, esta debe cumplir con los siguietnes requisitos:</p>
-                            <ul className="small text-muted pl-4 mb-0">
-                                <li>Minimo 8 caracteres</li>
-                                <li>Al menos una minuscula</li>
-                                <li>Al menos una mayuscula</li>
-                                <li>Al menos un numero</li>
-                            </ul>
-                        </div>
-                    </div>
-                
-            </div>
+
+        
         )
     }
 }

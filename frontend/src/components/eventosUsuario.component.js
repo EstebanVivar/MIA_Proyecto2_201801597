@@ -75,17 +75,8 @@ export default class EventosUsuario extends Component {
               right: 'dayGridMonth,timeGridWeek'
             }}
             locale={esLocale}
-            initialView='dayGridMonth'
-            editable={false}
-            selectable={true}
-            eventDisplay={'block'}
-            selectMirror={true}
-            dayMaxEvents={true}
-            weekends={this.state.weekendsVisible}
-            select={this.handleDateSelect}
-            eventContent={renderEventContent}
+            initialView='dayGridMonth'           
             eventClick={this.handleEventClick}
-            eventsSet={this.handleEvents}
             events={this.state.calendarEvents}
           />
         </div>
@@ -94,7 +85,6 @@ export default class EventosUsuario extends Component {
   }
   renderSidebar() {
     return (
-      <div className='eventos-app-sidebar'>
         <div className='eventos-app-sidebar-section'>
           <div className="card text-center">
             <div className="card-header" >
@@ -107,12 +97,12 @@ export default class EventosUsuario extends Component {
               <div className="form-group">
                 <h4>Prediccion</h4>
                 <label>Local</label>
-                <input type="text" name="p_local" value={this.state.info.p_local} onChange={this.OnInputChange} className="form-control" placeholder="Ingrese su nombre de usuario" />
+                <input type="text" name="p_local" value={this.state.info.p_local} onChange={this.OnInputChange} className="form-control" placeholder="Prediccion de visitante" />
               </div>
 
               <div className="form-group">
                 <label>Visitante</label>
-                <input type="text" name="p_visit" value={this.state.info.p_visit} onChange={this.OnInputChange} className="form-control" placeholder="Ingrese su contraseña" />
+                <input type="text" name="p_visit" value={this.state.info.p_visit} onChange={this.OnInputChange} className="form-control" placeholder="Prediccion de local" />
               </div>
 
               <form onSubmit={this.onSubmit}>
@@ -126,32 +116,11 @@ export default class EventosUsuario extends Component {
             </div>
           </div>
         </div>
-      </div>
     )
   }
 
 
-  handleWeekendsToggle = () => {
-    this.setState({
-      weekendsVisible: !this.state.weekendsVisible
-    })
-  }
 
-  handleDateSelect = (selectInfo) => {
-    let title = prompt('Please enter a new title for your event')
-    let calendarApi = selectInfo.view.calendar
-
-    calendarApi.unselect() // clear date selection
-
-    if (title) {
-      calendarApi.addEvent({
-        title,
-        start: selectInfo.startStr,
-        end: selectInfo.endStr,
-        allDay: selectInfo.allDay
-      })
-    }
-  }
 
 
   options = {
@@ -165,7 +134,6 @@ export default class EventosUsuario extends Component {
 
 
   handleEventClick = (clickInfo) => {
-    renderCardEvent(clickInfo)
     this.renderSidebar()
     return (
       this.setState({
@@ -184,28 +152,4 @@ export default class EventosUsuario extends Component {
   }
 }
 
-function renderEventContent(eventInfo) {
-  return (
-    <>
-      <b>{eventInfo.timeText}</b>
-      <i>{eventInfo.event.title}</i>
-    </>
-  )
-}
 
-// function renderSidebarEvent(event) {
-//   return (
-//     <li key={event.id}>
-//       <b>{formatDate(event.start, { year: 'numeric', month: 'short', day: 'numeric' })}</b>
-//       <i>{event.title}</i>
-//     </li>
-//   )
-// }
-function renderCardEvent(event) {
-  console.log(event)
-  return (
-
-    <i>{event.event.title}</i>
-
-  )
-}

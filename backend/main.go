@@ -73,6 +73,19 @@ type EventoRetorno struct {
 
 type arrayEventReturn []EventoRetorno
 
+type ResultadoEvento struct {
+	Id    string `json:"id"`
+	Home  string `json:"r_local"`
+	Visit string `json:"r_visita"`
+}
+type NuevoEvento struct {
+	Home    string `json:"local"`
+	Visit   string `json:"visita"`
+	I_Date  string `json:"fecha_inicio"`
+	Journey int `json:"jornada"`
+	Sport   int `json:"deporte"`
+}
+
 /////////////////////////
 type Evento struct {
 	Id      string `json:"id"`
@@ -284,7 +297,7 @@ func load(w http.ResponseWriter, r *http.Request) {
 						element.Sport, nil, nil)
 					commitDB(err)
 
-					_, er := Database.Exec(`CALL INSERT_EVENT(:1,:2,:3,:4,:5,:6,:7,:8)`,
+					_, er := Database.Exec(`CALL INSERT_EVENT_CARGA(:1,:2,:3,:4,:5,:6,:7,:8)`,
 						element.Local, element.Visit, element.Date, element.Result.R_local,
 						element.Result.R_visitant, journey, season, element.Sport)
 					commitDB(er)
@@ -339,6 +352,23 @@ func registrarUsuario(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(usuario)
 }
 
+func registrarEvento(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	var evento NuevoEvento
+
+	_ = json.NewDecoder(r.Body).Decode(&evento)
+
+	fmt.Println(evento.Home)
+	fmt.Println(evento.Visit)
+	fmt.Println(evento.I_Date)
+	fmt.Println(evento.Journey)
+	fmt.Println(evento.Sport)
+	_, err := Database.Query("CALL INSERT_EVENT(:1,:2,:3,:4,:5)",
+		evento.Home, evento.Visit, evento.I_Date, evento.Journey,evento.Sport)
+	commitDB(err)
+	json.NewEncoder(w).Encode(evento)
+}
+
 func actualizarUsuario(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var usuario UsuarioUpdate
@@ -353,6 +383,27 @@ func actualizarUsuario(w http.ResponseWriter, r *http.Request) {
 		Database.Exec("COMMIT;")
 	}
 	json.NewEncoder(w).Encode(usuario)
+}
+func actualizarEvento(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	var resultados ResultadoEvento
+
+	_ = json.NewDecoder(r.Body).Decode(&resultados)
+	fmt.Println(resultados.Id, resultados.Home, resultados.Visit)
+	rows, err := Database.Query(`UPDATE EVENTO 
+							SET MARCADOR_LOCAL=:1,
+							MARCADOR_VISITA=:2
+							WHERE ID_EVENTO = :3`,
+		resultados.Home, resultados.Visit, resultados.Id)
+	if err != nil {
+		fmt.Println("Error running query")
+		fmt.Println(err)
+		return
+	} else {
+		Database.Exec("COMMIT;")
+	}
+	defer rows.Close()
+	json.NewEncoder(w).Encode(resultados)
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
@@ -396,12 +447,19 @@ func obtenerEventosAdmin(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var event Evento
 	var lista = arrayEvent{}
-	rows, err := Database.Query("SELECT * FROM EVENTO")
-	if err != nil {
-		fmt.Println("Error running query")
-		fmt.Println(err)
-		return
-	}
+	rows, err := Database.Query(`SELECT 
+									E.ID_EVENTO,
+									E.LOCAL,
+									E.VISITANTE,
+									E.FECHA_INICIO,
+									TO_CHAR(E.MARCADOR_LOCAL),
+									TO_CHAR(E.MARCADOR_VISITA),
+									E.ID_JORNADA,
+									E.ID_DEPORTE,
+									E.FECHA_FIN
+							 	FROM EVENTO E`)
+	commitDB(err)
+
 	for rows.Next() {
 
 		rows.Scan(&event.Id, &event.Home, &event.Visit,
@@ -422,22 +480,28 @@ func obtenerEventosUser(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var eventUser EventoParametros
 	_ = json.NewDecoder(r.Body).Decode(&eventUser)
-	fmt.Println("//////////////////////////////////")
-	fmt.Println(strconv.Itoa(eventUser.IdUser))
-	fmt.Println("//////////////////////////////////")
+
 	var event EventoRetorno
 	var lista = arrayEventReturn{}
 
-	rows, err := Database.Query(" SELECT "+
-		" EVENTO.ID_EVENTO, EVENTO.LOCAL, EVENTO.VISITANTE, "+
-		" EVENTO.FECHA_INICIO, EVENTO.MARCADOR_LOCAL, EVENTO.MARCADOR_VISITA, "+
-		" EVENTO.ID_JORNADA, EVENTO.ID_DEPORTE, EVENTO.FECHA_FIN, PREDICCION.LOCAL, PREDICCION.VISITANTE "+
-		" FROM EVENTO "+
-		" INNER JOIN PREDICCION "+
-		" ON PREDICCION.ID_EVENTO = EVENTO.ID_EVENTO "+
-		" INNER JOIN USUARIO "+
-		" ON PREDICCION.ID_USUARIO = USUARIO.ID_USUARIO "+
-		" WHERE USUARIO.ID_USUARIO = :1", strconv.Itoa(eventUser.IdUser))
+	rows, err := Database.Query(`SELECT
+									E.ID_EVENTO,
+									E.LOCAL,
+									E.VISITANTE,
+									E.FECHA_INICIO,
+									E.MARCADOR_LOCAL,
+									E.MARCADOR_VISITA,
+									E.ID_JORNADA,
+									E.ID_DEPORTE,
+									E.FECHA_FIN,
+									to_char(P.LOCAL),
+									to_char(P.VISITANTE)
+									
+								FROM
+									EVENTO E
+									LEFT JOIN PREDICCION P ON E.ID_EVENTO = P.ID_EVENTO    
+									AND P.ID_USUARIO = :1`,
+		strconv.Itoa(eventUser.IdUser))
 	if err != nil {
 		fmt.Println("Error running query")
 		fmt.Println(err)
@@ -455,15 +519,7 @@ func obtenerEventosUser(w http.ResponseWriter, r *http.Request) {
 		event.F_Date = Final[0]
 		lista = append(lista, event)
 		fmt.Println("/////////////////////")
-		fmt.Println(event.Id)
-		fmt.Println(event.Home)
-		fmt.Println(event.Visit)
-		fmt.Println(event.I_Date)
-		fmt.Println(event.S_Home)
-		fmt.Println(event.S_Visit)
-		fmt.Println(event.Journey)
-		fmt.Println(event.Sport)
-		fmt.Println(event.F_Date)
+
 		fmt.Println(event.P_Home)
 		fmt.Println(event.P_Visit)
 	}
@@ -596,77 +652,47 @@ func obtenerGanadores(w http.ResponseWriter, r *http.Request) {
 	var membresia string
 	var conteo int
 
-	rows, _ := Database.Query(`
-							SELECT
-								MEMBERS,
-								COUNT(*) /(
-									SELECT
-										COUNT(*)
-									FROM
-										(
-											SELECT
-												(
-													DENSE_RANK() OVER(
-														PARTITION BY TEMPORADASQ
-														ORDER BY
-															PUNTOSSQ DESC
-													)
-												) AS RANKINGSQ
-											FROM(
-													SELECT
-														SUM(PSQ.PUNTAJE) PUNTOSSQ,
-														TSQ.ID_TEMPORADA TEMPORADASQ
-													FROM
-														PREDICCION PSQ
-														INNER JOIN USUARIO USQ ON PSQ.ID_USUARIO = USQ.ID_USUARIO
-														INNER JOIN EVENTO ESQ ON PSQ.ID_EVENTO = ESQ.ID_EVENTO
-														INNER JOIN JORNADA JSQ ON JSQ.ID_JORNADA = ESQ.ID_JORNADA
-														INNER JOIN TEMPORADA TSQ ON JSQ.ID_TEMPORADA = TSQ.ID_TEMPORADA
-													GROUP BY
-														TSQ.ID_TEMPORADA,
-														USQ.ID_USUARIO
+	rows, _ := Database.Query(`SELECT
+									RANKING,
+									MEMBERS,
+									COUNT(*)
+								FROM
+									(
+										SELECT
+											MEMBERS,(
+												DENSE_RANK() OVER(
+													PARTITION BY TEMPORADA
 													ORDER BY
-														TSQ.ID_TEMPORADA ASC,
-														SUM(PSQ.PUNTAJE) DESC
+														PUNTOS DESC
 												)
-										)
-									WHERE
-										RANKINGSQ > 3
-								)
-							FROM
-								(
-									SELECT
-										MEMBERS,(
-											DENSE_RANK() OVER(
-												PARTITION BY TEMPORADA
-												ORDER BY
-													PUNTOS DESC
+											) AS RANKING
+										FROM(
+												SELECT
+													SUM(P.PUNTAJE) PUNTOS,
+													T.ID_TEMPORADA TEMPORADA,
+													M.NOMBRE MEMBERS
+												FROM
+													PREDICCION P
+													INNER JOIN USUARIO U ON P.ID_USUARIO = U.ID_USUARIO
+													INNER JOIN DETALLE_MEMBRESIA DM ON DM.ID_USUARIO = U.ID_USUARIO
+													INNER JOIN TEMPORADA T ON T.ID_TEMPORADA = DM.ID_TEMPORADA
+													INNER JOIN JORNADA J ON J.ID_TEMPORADA = T.ID_TEMPORADA
+													INNER JOIN EVENTO E ON E.ID_EVENTO = P.ID_EVENTO
+													AND E.ID_JORNADA = J.ID_JORNADA
+													INNER JOIN MEMBRESIA M ON M.ID_MEMBRESIA = DM.ID_MEMBRESIA
+												GROUP BY
+													U.ID_USUARIO,
+													M.NOMBRE,
+													T.ID_TEMPORADA
 											)
-										) AS RANKING
-									FROM(
-											SELECT
-												SUM(P.PUNTAJE) PUNTOS,
-												T.ID_TEMPORADA TEMPORADA,
-												M.NOMBRE MEMBERS
-											FROM
-												PREDICCION P
-												INNER JOIN USUARIO U ON P.ID_USUARIO = U.ID_USUARIO
-												INNER JOIN DETALLE_MEMBRESIA DM ON DM.ID_USUARIO = U.ID_USUARIO
-												INNER JOIN TEMPORADA T ON T.ID_TEMPORADA = DM.ID_TEMPORADA
-												INNER JOIN JORNADA J ON J.ID_TEMPORADA = T.ID_TEMPORADA
-												INNER JOIN EVENTO E ON E.ID_EVENTO = P.ID_EVENTO
-												AND E.ID_JORNADA = J.ID_JORNADA
-												INNER JOIN MEMBRESIA M ON M.ID_MEMBRESIA = DM.ID_MEMBRESIA
-											GROUP BY
-												U.ID_USUARIO,
-												M.NOMBRE,
-												T.ID_TEMPORADA
-										)
-								)
-							WHERE
-								RANKING > 3
-							GROUP BY
-							MEMBERS;`)
+									)
+								GROUP BY
+									RANKING,
+									MEMBERS
+								HAVING
+									RANKING <= 3
+								ORDER BY
+									RANKING ASC`)
 	for rows.Next() {
 		rows.Scan(&ranking, &membresia, &conteo)
 		fmt.Println(ranking, membresia, conteo)
@@ -833,6 +859,8 @@ func main() {
 	router.HandleFunc("/ganadores/", obtenerGanadores).Methods("GET")
 	router.HandleFunc("/perdedores/", obtenerPerdedores).Methods("POST")
 	router.HandleFunc("/temporadas/", obtenerTemporadas).Methods("GET")
+	router.HandleFunc("/u_results/", actualizarEvento).Methods("POST")
+	router.HandleFunc("/crear_evento/", registrarEvento).Methods("POST")
 
 	db, err := sql.Open("godror", "admin/admin@localhost:1521/ORCLCDB.localdomain")
 	Database = db

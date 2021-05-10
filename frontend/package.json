@@ -15,6 +15,7 @@
     "axios": "^0.21.1",
     "bootstrap": "^4.6.0",
     "chart.js": "^3.2.1",
+    "DatePicker": "github:artemershov/DatePicker",
     "jquery": "^3.6.0",
     "js-yaml": "^3.14.1",
     "popper.js": "^1.16.1",
