@@ -307,19 +307,18 @@ func generarTemporada(w http.ResponseWriter, r *http.Request) {
 	fecha := strings.Split(now.String(), ".") // Separador '.' para obtener formato 'YYYY-MM-DD HH:MM:SS'
 
 	nombre := generarNombreTemporada(ultimo, strconv.Itoa(year)) // Generando el Nuevo ID de la temporada ->  2021-Q1 incremetnal
-
-	fmt.Println(nombre + " " + fecha[0])
-	_, err1 := Database.Exec("CALL INSERT_SEASON_ACTIVA(:1,:2)", nombre, fecha[0]) // Insertando la nueva temporada y creando su jornada 1
+	fmt.Println(fecha[0])
+	_, err1 := Database.Exec("CALL INSERT_NEW_SEASON(:1,:2)", nombre, fecha[0]) // Insertando la nueva temporada y creando su jornada 1
 	commitDB(err1)
-
-	rows, err2 := Database.Query(`SELECT DM.ID_PENDIENTE,DM.ID_USUARIO 
-								FROM DETALLE MEMBRESIA DM
+fmt.Println("'Q11111")
+	rows, err2 := Database.Query(`SELECT to_char(DM.ID_PENDIENTE),DM.ID_USUARIO 
+								FROM DETALLE_MEMBRESIA DM
 								INNER JOIN TEMPORADA T 
 								ON DM.ID_TEMPORADA = T.ID_TEMPORADA 
 								WHERE T.NOMBRE = :1`, ultimo) // Obteniendo las membresias de los usuarios de la ultima teporada '2020-Q12' *TIER_PROXIMO ES EL ID
 	commitDB(err2)
 	defer rows.Close()
-	var tier, user int
+	var tier, user string
 	for rows.Next() { // Recorriendo las membresias
 		err := rows.Scan(&tier, &user)
 		if err != nil {
