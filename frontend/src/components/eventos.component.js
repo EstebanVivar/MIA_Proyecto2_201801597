@@ -55,6 +55,11 @@ export default class Eventos extends Component {
     await this.sendPostResultado();
 
   };
+  onSubmitSeason = async (e) => {
+    e.preventDefault();
+    await this.sendGetSeason();
+
+  };
 
   sendPostResultado = async () => {
     const results = {
@@ -103,6 +108,15 @@ export default class Eventos extends Component {
         this.setState({
           calendarEvents: this.state.Events
         })
+        console.log(response)
+      });
+  }
+
+  sendGetSeason = async () => {
+    await axios
+      .get("http://localhost:4000/newSeason/")
+      .then(response => {
+        
         console.log(response)
       });
   }
@@ -187,6 +201,9 @@ export default class Eventos extends Component {
             </div>
           </div>
         </div>
+        <form onSubmit={this.onSubmitSeason}>
+                <button type="submit" className="btn btn-primary">Cerrar Temporada</button>
+            </form>
       </div>
 
     )

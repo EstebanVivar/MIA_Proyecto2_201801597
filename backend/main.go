@@ -89,17 +89,17 @@ type ResultadoEvento struct {
 }
 
 type Posiciones struct {
-	Id    string `json:"id"`
-	User    string `json:"user"`
-	Name  string `json:"name"`
-	Last string `json:"last"`
-	Tier string `json:"tier"`
+	Id     string `json:"id"`
+	User   string `json:"user"`
+	Name   string `json:"name"`
+	Last   string `json:"last"`
+	Tier   string `json:"tier"`
 	Season string `json:"season"`
-	P10 string `json:"p10"`
-	P5 string `json:"p5"`
-	P3 string `json:"p3"`
-	P0 string `json:"p0"`
-	Total string `json:"total"`	
+	P10    string `json:"p10"`
+	P5     string `json:"p5"`
+	P3     string `json:"p3"`
+	P0     string `json:"p0"`
+	Total  string `json:"total"`
 }
 type arrayPosiciones []Posiciones
 
@@ -168,14 +168,14 @@ type Login struct {
 
 ////////////////////////////////
 type prediction struct {
-	P_visitant 	int `json:"visitante"`
-	P_local    	int `json:"local"`
+	P_visitant int `json:"visitante"`
+	P_local    int `json:"local"`
 }
 type NuevaPrediccion struct {
-	User 		int `json:"user"`
-	Event 		string `json:"event"`
-	P_visita 	string `json:"p_visita"`
-	P_local    	string `json:"p_local"`
+	User     int    `json:"user"`
+	Event    string `json:"event"`
+	P_visita string `json:"p_visita"`
+	P_local  string `json:"p_local"`
 }
 
 type result struct {
@@ -295,7 +295,7 @@ func generarNombreTemporada(last, year string) string {
 
 }
 
-func generarTemporada() {
+func generarTemporada(w http.ResponseWriter, r *http.Request) {
 	var ultimo string
 	err := Database.QueryRow(`SELECT NOMBRE 
 		FROM TEMPORADA ORDER BY FECHA_INICIO DESC 
@@ -461,9 +461,9 @@ func registrarPrediccion(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewDecoder(r.Body).Decode(&prediccion)
 	fmt.Println(prediccion)
 	// fmt.Println(evento.Home)
-	
+
 	_, err := Database.Query(` INSERT INTO PREDICCION(LOCAL, VISITANTE, ID_EVENTO, ID_USUARIO)
-    VALUES (:1,:2,:3,:4)`,prediccion.P_local, prediccion.P_visita, prediccion.Event, prediccion.User)
+    VALUES (:1,:2,:3,:4)`, prediccion.P_local, prediccion.P_visita, prediccion.Event, prediccion.User)
 	commitDB(err)
 	json.NewEncoder(w).Encode(prediccion)
 }
@@ -660,7 +660,7 @@ func obtenerEventosUser(w http.ResponseWriter, r *http.Request) {
 		Final := strings.Split(event.F_Date, "Z")
 		event.F_Date = Final[0]
 		lista = append(lista, event)
-		
+
 	}
 	defer rows.Close()
 
@@ -782,7 +782,6 @@ func obtenerPerdedores(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(pastel)
 }
 
-
 func obtenerPosiciones(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -899,13 +898,12 @@ func obtenerPosiciones(w http.ResponseWriter, r *http.Request) {
 
 							ORDER BY
 								TOTAL DESC`, season.Season)
-	
 
 	for rows.Next() {
-		rows.Scan(&posicion.Id,&posicion.User, &posicion.Name,&posicion.Last,&posicion.Tier,
-			&posicion.Season,&posicion.P10,&posicion.P5,&posicion.P3,&posicion.P0,&posicion.Total)
-			
-			lista = append(lista, posicion)
+		rows.Scan(&posicion.Id, &posicion.User, &posicion.Name, &posicion.Last, &posicion.Tier,
+			&posicion.Season, &posicion.P10, &posicion.P5, &posicion.P3, &posicion.P0, &posicion.Total)
+
+		lista = append(lista, posicion)
 
 	}
 	json.NewEncoder(w).Encode(lista)
@@ -1133,6 +1131,7 @@ func main() {
 	router.HandleFunc("/NewPred/", registrarPrediccion).Methods("POST")
 	router.HandleFunc("/cambioMember/", actualizarMembresia).Methods("POST")
 	router.HandleFunc("/tablaPosiciones/", obtenerPosiciones).Methods("POST")
+	router.HandleFunc("/newSeason/", generarTemporada).Methods("GET")
 	db, err := sql.Open("godror", "admin/admin@localhost:1521/ORCLCDB.localdomain")
 	Database = db
 	if err != nil {
