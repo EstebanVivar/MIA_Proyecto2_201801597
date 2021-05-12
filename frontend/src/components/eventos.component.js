@@ -19,7 +19,8 @@ export default class Eventos extends Component {
     E_visita: "",
     E_deporte: 1,
     E_fecha: "",
-    E_jornada: 137,
+    E_hora: "",
+    E_jornada: 131,
     R_visita:"",
     R_local:""
   }
@@ -81,7 +82,7 @@ export default class Eventos extends Component {
       local: this.state.E_local,
       visita: this.state.E_visita,
       deporte: this.state.E_deporte,
-      fecha_inicio: this.state.E_fecha,
+      fecha_inicio: this.state.E_fecha+' '+this.state.E_hora,
       jornada: this.state.E_jornada
     }
     await axios.post("http://localhost:4000/crear_evento/", event)
@@ -145,7 +146,7 @@ export default class Eventos extends Component {
               </div>
               <div className="form-group">
                 <label>Visita: &nbsp;</label>
-                <input type="text" name="R_visita" value={this.state.R_visita} onChange={this.OnInputChange} placeholder="Resultado visitante" />
+                <input type="text" name="R_visita" value={this.state.R_visita} onChange={this.OnInputChange}  placeholder="Resultado visitante" />
               </div>
               <form onSubmit={this.onSubmitResultado}>
                 <button type="submit" className="btn btn-primary">Ingresar</button>
@@ -172,10 +173,12 @@ export default class Eventos extends Component {
                 <label>Deporte:&nbsp;</label>
                 <input type="text" name="E_deporte" value={this.state.E_deporte} onChange={this.OnInputChange} placeholder="Deporte" />
               </div>
-
               <div className="form-group">
-                <label>Fecha I.:&nbsp;</label>
-                <input type="text" name="E_fecha" value={this.state.E_fecha} onChange={this.OnInputChange} placeholder="DD-MM-YYYY HH24:MI" />
+                <label>Fecha:&nbsp;</label>
+                <input type="date" name="E_fecha" value={this.state.E_fecha} onChange={this.OnInputChange}  placeholder="DD-MM-YYYY HH24:MI" />
+            
+                <label>&nbsp;Hora:</label>
+                <input type="time" name="E_hora" value={this.state.E_hora} onChange={this.OnInputChange} placeholder="DD-MM-YYYY HH24:MI" />
               </div>
 
               <form onSubmit={this.onSubmitEvento}>

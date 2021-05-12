@@ -4,6 +4,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"time"
 
 	// "io/ioutil"
 	"database/sql"
@@ -51,6 +52,14 @@ type Membresia struct {
 }
 type arrayTier []Membresia
 
+////////////////////////
+type SetTier struct {
+	Suscribed string `json:"subscription"`
+	User      int    `json:"user"`
+	Tier      string `json:"tier"`
+}
+
+//////////////////////////
 type Temporada struct {
 	Season string `json:"nombre"`
 }
@@ -78,12 +87,28 @@ type ResultadoEvento struct {
 	Home  string `json:"r_local"`
 	Visit string `json:"r_visita"`
 }
+
+type Posiciones struct {
+	Id    string `json:"id"`
+	User    string `json:"user"`
+	Name  string `json:"name"`
+	Last string `json:"last"`
+	Tier string `json:"tier"`
+	Season string `json:"season"`
+	P10 string `json:"p10"`
+	P5 string `json:"p5"`
+	P3 string `json:"p3"`
+	P0 string `json:"p0"`
+	Total string `json:"total"`	
+}
+type arrayPosiciones []Posiciones
+
 type NuevoEvento struct {
 	Home    string `json:"local"`
 	Visit   string `json:"visita"`
 	I_Date  string `json:"fecha_inicio"`
-	Journey int `json:"jornada"`
-	Sport   int `json:"deporte"`
+	Journey int    `json:"jornada"`
+	Sport   int    `json:"deporte"`
 }
 
 /////////////////////////
@@ -143,8 +168,14 @@ type Login struct {
 
 ////////////////////////////////
 type prediction struct {
-	P_visitant int `json:"visitante"`
-	P_local    int `json:"local"`
+	P_visitant 	int `json:"visitante"`
+	P_local    	int `json:"local"`
+}
+type NuevaPrediccion struct {
+	User 		int `json:"user"`
+	Event 		string `json:"event"`
+	P_visita 	string `json:"p_visita"`
+	P_local    	string `json:"p_local"`
 }
 
 type result struct {
@@ -250,6 +281,60 @@ func commitDB(err error) {
 	}
 }
 
+func generarNombreTemporada(last, year string) string {
+	ant := strings.Split(last, "-Q")
+
+	// Temporada sigue en mismo anio solo aumentamos ID -Q#
+	if year == ant[0] {
+		id, _ := strconv.Atoi(ant[1])
+		id++
+		return ant[0] + "-Q" + strconv.Itoa(id)
+	}
+
+	return year + "-Q1"
+
+}
+
+func generarTemporada() {
+	var ultimo string
+	err := Database.QueryRow(`SELECT NOMBRE 
+		FROM TEMPORADA ORDER BY FECHA_INICIO DESC 
+		FETCH FIRST 1 ROWS ONLY`).Scan(&ultimo)
+	commitDB(err)
+
+	now := time.Now()
+	year := now.Year()
+	fecha := strings.Split(now.String(), ".") // Separador '.' para obtener formato 'YYYY-MM-DD HH:MM:SS'
+
+	nombre := generarNombreTemporada(ultimo, strconv.Itoa(year)) // Generando el Nuevo ID de la temporada ->  2021-Q1 incremetnal
+
+	fmt.Println(nombre + " " + fecha[0])
+	_, err1 := Database.Exec("CALL INSERT_SEASON_ACTIVA(:1,:2)", nombre, fecha[0]) // Insertando la nueva temporada y creando su jornada 1
+	commitDB(err1)
+
+	rows, err2 := Database.Query(`SELECT DM.ID_PENDIENTE,DM.ID_USUARIO 
+								FROM DETALLE MEMBRESIA DM
+								INNER JOIN TEMPORADA T 
+								ON DM.ID_TEMPORADA = T.ID_TEMPORADA 
+								WHERE T.NOMBRE = :1`, ultimo) // Obteniendo las membresias de los usuarios de la ultima teporada '2020-Q12' *TIER_PROXIMO ES EL ID
+	commitDB(err2)
+	defer rows.Close()
+	var tier, user int
+	for rows.Next() { // Recorriendo las membresias
+		err := rows.Scan(&tier, &user)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		_, err1 := Database.Exec("CALL RENOVAR_MEMBRESIA(:1,:2,:3)", tier, nombre, user) // por cada row se renueva la membresia para la jornada nueva 2021-Q1
+		if err1 != nil {
+			fmt.Println(err1)
+			return
+		}
+	}
+
+}
+
 func load(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var user string
@@ -270,15 +355,13 @@ func load(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Resultados")
 		for _, element := range element.Results {
 			arrayResultados := strings.Split(element.Season, "-Q")
-			anyo, _ := strconv.Atoi(arrayResultados[0])
-			mes, _ := strconv.Atoi(arrayResultados[1])
-
-			_, err := Database.Exec(`CALL INSERT_SEASON(:1,:2, :3, :4)`,
-				element.Season, anyo, mes, arrayResultados[0]+"-"+arrayResultados[1])
+			fmt.Println("1")
+			_, err := Database.Exec(`CALL INSERT_SEASON(:1,:2 )`,
+				element.Season, arrayResultados[0]+"-"+arrayResultados[1])
 			commitDB(err)
 			season = element.Season
 			tier = element.Tier
-
+			fmt.Println("2")
 			_, er := Database.Exec(`CALL INSERT_SEASON_DETAIL(:1,:2, :3)`,
 				user, season, tier)
 			commitDB(er)
@@ -287,20 +370,24 @@ func load(w http.ResponseWriter, r *http.Request) {
 			for _, element := range element.Journeys {
 				journey = element.Journey
 				arrayJornada := strings.Split(element.Journey, "J")
-				_, er := Database.Exec(`CALL INSERT_JOURNEY(:1,:2,:3,:4)`,
+				fmt.Println("3")
+				_, er := Database.Exec(`CALL INSERT_JOURNEY_CARGA(:1,:2,:3,:4)`,
 					element.Journey, season, arrayResultados[0]+"-"+arrayResultados[1], arrayJornada[1])
 				commitDB(er)
 
 				fmt.Println("Predicciones")
 				for _, element := range element.Predictions {
+					fmt.Println("4")
 					_, err := Database.Exec(`CALL INSERT_SPORT(:1,:2,:3)`,
 						element.Sport, nil, nil)
 					commitDB(err)
+					fmt.Println("7")
 
 					_, er := Database.Exec(`CALL INSERT_EVENT_CARGA(:1,:2,:3,:4,:5,:6,:7,:8)`,
 						element.Local, element.Visit, element.Date, element.Result.R_local,
 						element.Result.R_visitant, journey, season, element.Sport)
 					commitDB(er)
+					fmt.Println("6")
 
 					_, e := Database.Exec(`CALL CARGA_PREDICCION(:1,:2,:3,:4,:5,:6,:7,:8,:9,:10)`,
 						element.Prediction.P_local, element.Prediction.P_visitant, user,
@@ -319,10 +406,8 @@ func load(w http.ResponseWriter, r *http.Request) {
 func punteo(r_local, p_local, r_visita, p_visita int) int {
 	if r_local == p_local && r_visita == p_visita {
 		return 10
-	} else if (r_local >= r_visita && p_local >= p_visita) ||
-		(r_local <= r_visita && p_local <= p_visita) {
-		if (r_local == r_visita && p_local != p_visita) ||
-			(r_local != r_visita && p_local == p_visita) {
+	} else if (r_local >= r_visita && p_local >= p_visita) || (r_local <= r_visita && p_local <= p_visita) {
+		if (r_local == r_visita && p_local != p_visita) || (r_local != r_visita && p_local == p_visita) {
 			return 0
 		}
 		results := float64(r_local + r_visita)
@@ -364,9 +449,23 @@ func registrarEvento(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(evento.Journey)
 	fmt.Println(evento.Sport)
 	_, err := Database.Query("CALL INSERT_EVENT(:1,:2,:3,:4,:5)",
-		evento.Home, evento.Visit, evento.I_Date, evento.Journey,evento.Sport)
+		evento.Home, evento.Visit, evento.I_Date, evento.Journey, evento.Sport)
 	commitDB(err)
 	json.NewEncoder(w).Encode(evento)
+}
+
+func registrarPrediccion(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	var prediccion NuevaPrediccion
+
+	_ = json.NewDecoder(r.Body).Decode(&prediccion)
+	fmt.Println(prediccion)
+	// fmt.Println(evento.Home)
+	
+	_, err := Database.Query(` INSERT INTO PREDICCION(LOCAL, VISITANTE, ID_EVENTO, ID_USUARIO)
+    VALUES (:1,:2,:3,:4)`,prediccion.P_local, prediccion.P_visita, prediccion.Event, prediccion.User)
+	commitDB(err)
+	json.NewEncoder(w).Encode(prediccion)
 }
 
 func actualizarUsuario(w http.ResponseWriter, r *http.Request) {
@@ -384,6 +483,7 @@ func actualizarUsuario(w http.ResponseWriter, r *http.Request) {
 	}
 	json.NewEncoder(w).Encode(usuario)
 }
+
 func actualizarEvento(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var resultados ResultadoEvento
@@ -404,6 +504,49 @@ func actualizarEvento(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 	json.NewEncoder(w).Encode(resultados)
+}
+func actualizarMembresia(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	var lastSeason string
+	err := Database.QueryRow(`SELECT ID_TEMPORADA 
+		FROM TEMPORADA ORDER BY FECHA_INICIO DESC 
+		FETCH FIRST 1 ROWS ONLY`).Scan(&lastSeason)
+	commitDB(err)
+	var cambioMember SetTier
+	_ = json.NewDecoder(r.Body).Decode(&cambioMember)
+	fmt.Println(cambioMember)
+	var cantidadMembresias int
+	err2 := Database.QueryRow(`
+	SELECT count(*) FROM DETALLE_MEMBRESIA where ID_USUARIO = :1`, cambioMember.User).Scan(&cantidadMembresias)
+	commitDB(err2)
+	fmt.Println(cantidadMembresias)
+	if cantidadMembresias == 0 {
+		_, err1 := Database.Exec("CALL BUY_MEMBERSHIP(:1,:2,:3,'Y')", cambioMember.Tier, lastSeason, cambioMember.User) // por cada row se renueva la membresia para la jornada nueva 2021-Q1
+		if err1 != nil {
+			fmt.Println(err1)
+			return
+		} else {
+			Database.Exec("COMMIT;")
+		}
+
+	} else {
+
+		rows, err := Database.Query(`UPDATE DETALLE_MEMBRESIA 
+							SET ID_PENDIENTE=:1,
+							SUSCRIPCION=:2
+							WHERE ID_USUARIO = :3
+							AND ID_TEMPORADA =:4`,
+			cambioMember.Tier, cambioMember.Suscribed, cambioMember.User, lastSeason)
+		if err != nil {
+			fmt.Println("Error running query")
+			fmt.Println(err)
+			return
+		} else {
+			Database.Exec("COMMIT;")
+		}
+		defer rows.Close()
+	}
+	json.NewEncoder(w).Encode(cambioMember)
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
@@ -489,8 +632,8 @@ func obtenerEventosUser(w http.ResponseWriter, r *http.Request) {
 									E.LOCAL,
 									E.VISITANTE,
 									E.FECHA_INICIO,
-									E.MARCADOR_LOCAL,
-									E.MARCADOR_VISITA,
+									NVL(to_char(E.MARCADOR_LOCAL),'/'),
+									NVL(to_char(E.MARCADOR_VISITA),'/'),
 									E.ID_JORNADA,
 									E.ID_DEPORTE,
 									E.FECHA_FIN,
@@ -508,7 +651,6 @@ func obtenerEventosUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for rows.Next() {
-		fmt.Println(rows)
 
 		rows.Scan(&event.Id, &event.Home, &event.Visit,
 			&event.I_Date, &event.S_Home, &event.S_Visit,
@@ -518,10 +660,7 @@ func obtenerEventosUser(w http.ResponseWriter, r *http.Request) {
 		Final := strings.Split(event.F_Date, "Z")
 		event.F_Date = Final[0]
 		lista = append(lista, event)
-		fmt.Println("/////////////////////")
-
-		fmt.Println(event.P_Home)
-		fmt.Println(event.P_Visit)
+		
 	}
 	defer rows.Close()
 
@@ -641,6 +780,135 @@ func obtenerPerdedores(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Println(pastel)
 	json.NewEncoder(w).Encode(pastel)
+}
+
+
+func obtenerPosiciones(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	var season Temporada
+	var posicion Posiciones
+	var lista = arrayPosiciones{}
+	_ = json.NewDecoder(r.Body).Decode(&season)
+	fmt.Println(season.Season)
+	rows, _ := Database.Query(`SELECT
+								U.ID_USUARIO,
+								U.USUARIO,
+								U.NOMBRE,
+								U.APELLIDO,
+								MEMBRESIA.NOMBRE,
+								DM.ID_TEMPORADA,
+								(
+									SELECT
+										COUNT(*)
+									FROM
+									PREDICCION P
+									INNER JOIN EVENTO E
+									ON P.ID_EVENTO=E.ID_EVENTO
+									INNER JOIN JORNADA J
+									ON J.ID_JORNADA = E.ID_JORNADA
+									INNER JOIN TEMPORADA T
+									ON J.ID_TEMPORADA =T.ID_TEMPORADA
+									
+									WHERE
+										P.PUNTAJE = 10
+										AND P.ID_USUARIO = U.ID_USUARIO
+										AND T.NOMBRE = :1
+								) AS P10,
+								(
+									SELECT
+										COUNT(*)
+									FROM
+									PREDICCION P
+									INNER JOIN EVENTO E
+									ON P.ID_EVENTO=E.ID_EVENTO
+									INNER JOIN JORNADA J
+									ON J.ID_JORNADA = E.ID_JORNADA
+									INNER JOIN TEMPORADA T
+									ON J.ID_TEMPORADA =T.ID_TEMPORADA
+									WHERE
+										P.PUNTAJE = 5
+										AND P.ID_USUARIO = U.ID_USUARIO
+										AND T.NOMBRE = :1
+								) AS P5,
+								(
+									SELECT
+										COUNT(*)
+									FROM
+									PREDICCION P
+									INNER JOIN EVENTO E
+									ON P.ID_EVENTO=E.ID_EVENTO
+									INNER JOIN JORNADA J
+									ON J.ID_JORNADA = E.ID_JORNADA
+									INNER JOIN TEMPORADA T
+									ON J.ID_TEMPORADA =T.ID_TEMPORADA
+									WHERE
+										P.PUNTAJE = 3
+										AND P.ID_USUARIO = U.ID_USUARIO
+										AND T.NOMBRE = :1
+								) AS P3,
+								(
+									SELECT
+										COUNT(*)
+									FROM
+									PREDICCION P
+									INNER JOIN EVENTO E
+									ON P.ID_EVENTO=E.ID_EVENTO
+									INNER JOIN JORNADA J
+									ON J.ID_JORNADA = E.ID_JORNADA
+									INNER JOIN TEMPORADA T
+									ON J.ID_TEMPORADA =T.ID_TEMPORADA
+									WHERE
+										P.PUNTAJE = 0
+										AND P.ID_USUARIO = U.ID_USUARIO
+										AND T.NOMBRE = :1
+								) AS P0,
+								(
+									SELECT
+										SUM(P.PUNTAJE)
+									FROM
+									PREDICCION P
+									INNER JOIN EVENTO E
+									ON P.ID_EVENTO=E.ID_EVENTO
+									INNER JOIN JORNADA J
+									ON J.ID_JORNADA = E.ID_JORNADA
+									INNER JOIN TEMPORADA T
+									ON J.ID_TEMPORADA =T.ID_TEMPORADA
+									WHERE
+										P.ID_USUARIO = U.ID_USUARIO
+										AND T.NOMBRE = :1
+									GROUP BY
+										ID_USUARIO
+								) as TOTAL
+							FROM
+								PREDICCION P
+								INNER JOIN USUARIO U ON P.ID_USUARIO = U.ID_USUARIO
+								INNER JOIN DETALLE_MEMBRESIA DM ON U.ID_USUARIO = DM.ID_USUARIO
+								INNER JOIN MEMBRESIA ON DM.ID_MEMBRESIA = MEMBRESIA.ID_MEMBRESIA
+								INNER JOIN TEMPORADA T ON DM.ID_TEMPORADA = T.ID_TEMPORADA
+							WHERE
+								T.NOMBRE = :1
+								AND DM.ID_USUARIO = U.ID_USUARIO
+							GROUP BY
+								U.ID_USUARIO,
+								U.USUARIO,
+								U.NOMBRE,
+								U.APELLIDO,
+								MEMBRESIA.NOMBRE,
+								DM.ID_TEMPORADA   
+
+							ORDER BY
+								TOTAL DESC`, season.Season)
+	
+
+	for rows.Next() {
+		rows.Scan(&posicion.Id,&posicion.User, &posicion.Name,&posicion.Last,&posicion.Tier,
+			&posicion.Season,&posicion.P10,&posicion.P5,&posicion.P3,&posicion.P0,&posicion.Total)
+			
+			lista = append(lista, posicion)
+
+	}
+	json.NewEncoder(w).Encode(lista)
 }
 
 func obtenerGanadores(w http.ResponseWriter, r *http.Request) {
@@ -767,8 +1035,8 @@ func obtenerGanancias(w http.ResponseWriter, r *http.Request) {
 	ON DETALLE_MEMBRESIA.ID_TEMPORADA = TEMPORADA.ID_TEMPORADA
 	INNER JOIN MEMBRESIA 
 	ON MEMBRESIA.ID_MEMBRESIA = DETALLE_MEMBRESIA.ID_MEMBRESIA
-	GROUP BY TEMPORADA.ANYO,TEMPORADA.MES,TEMPORADA.NOMBRE 
-	ORDER BY TEMPORADA.ANYO,TEMPORADA.MES ASC`)
+	GROUP BY TEMPORADA.FECHA_INICIO,TEMPORADA.NOMBRE 
+	ORDER BY TEMPORADA.FECHA_INICIO ASC`)
 	for rows.Next() {
 		rows.Scan(&y, &x)
 		datos.X = append(datos.X, x)
@@ -792,9 +1060,9 @@ func obtenerGananciasYear(w http.ResponseWriter, r *http.Request) {
 	ON DETALLE_MEMBRESIA.ID_TEMPORADA = TEMPORADA.ID_TEMPORADA
 	INNER JOIN MEMBRESIA 
 	ON MEMBRESIA.ID_MEMBRESIA = DETALLE_MEMBRESIA.ID_MEMBRESIA
-	WHERE TEMPORADA.ANYO=:1
-	GROUP BY TEMPORADA.ANYO,TEMPORADA.MES,TEMPORADA.NOMBRE 
-	ORDER BY TEMPORADA.ANYO,TEMPORADA.MES ASC`, year.Year)
+	WHERE EXTRACT(YEAR FROM TEMPORADA.FECHA_INICIO)=:1
+	GROUP BY TEMPORADA.FECHA_INICIO,TEMPORADA.NOMBRE 
+	ORDER BY TEMPORADA.FECHA_INICIO ASC`, year.Year)
 	for rows.Next() {
 		rows.Scan(&y, &x)
 		datos.X = append(datos.X, x)
@@ -827,7 +1095,7 @@ func obtenerTemporadas(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var season Temporada
 	var lista = arraySeason{}
-	rows, err := Database.Query("SELECT NOMBRE FROM TEMPORADA ORDER BY  ANYO ASC,MES ASC")
+	rows, err := Database.Query("SELECT NOMBRE FROM TEMPORADA ORDER BY  FECHA_INICIO ASC")
 	if err != nil {
 		fmt.Println("Error running query")
 		fmt.Println(err)
@@ -844,6 +1112,7 @@ func obtenerTemporadas(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+
 	// routes
 	router := mux.NewRouter()
 	router.HandleFunc("/registrar/", registrarUsuario).Methods("POST")
@@ -861,7 +1130,9 @@ func main() {
 	router.HandleFunc("/temporadas/", obtenerTemporadas).Methods("GET")
 	router.HandleFunc("/u_results/", actualizarEvento).Methods("POST")
 	router.HandleFunc("/crear_evento/", registrarEvento).Methods("POST")
-
+	router.HandleFunc("/NewPred/", registrarPrediccion).Methods("POST")
+	router.HandleFunc("/cambioMember/", actualizarMembresia).Methods("POST")
+	router.HandleFunc("/tablaPosiciones/", obtenerPosiciones).Methods("POST")
 	db, err := sql.Open("godror", "admin/admin@localhost:1521/ORCLCDB.localdomain")
 	Database = db
 	if err != nil {

@@ -7,7 +7,7 @@ export default class Login extends Component {
         precio: "",
         list: []
     }
-    data = localStorage.getItem('user')
+    data = JSON.parse(localStorage.getItem('user'))
 
     componentDidMount() {
         this.sendGet();
@@ -42,9 +42,12 @@ export default class Login extends Component {
             user: this.data.id,
             tier: this.state.selected
         }
+        console.log(this.data)
         await axios
-            .post("http://localhost:4000/tier/", detail)
-
+            .post("http://localhost:4000/cambioMember/", detail)
+            .then(response => {
+                console.log(response)
+            });
     };
 
     render() {
@@ -62,7 +65,7 @@ export default class Login extends Component {
                         onChange={this.OnInputChange}
                         value={this.state.selected}
                     >
-                        <option value="" selected disabled>Selecciona tu membresia</option>
+                        {/* <option defaultValue="" selected disabled>Selecciona tu membresia</option> */}
                         {this.state.list.map((valor, index) => (
                             <option key={index} value={valor.id}>
                                 {valor.descripcion}

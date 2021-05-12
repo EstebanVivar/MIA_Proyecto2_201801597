@@ -14,7 +14,11 @@ export default class EventosUsuario extends Component {
     weekendsVisible: true,
     calendarEvents: [],
     info: [],
-    Events: []
+    Events: [],
+    R_visita:"/",
+    R_local:"/",
+    P_visita:"",
+    P_local:""
   }
 
 
@@ -39,7 +43,11 @@ export default class EventosUsuario extends Component {
     })
   }
 
+  onSubmit = async (e) => {
+    e.preventDefault();
+    await this.sendPost();
 
+  };
   sendGet = async () => {
     console.log(this.data.id)
     const info = {
@@ -60,7 +68,28 @@ export default class EventosUsuario extends Component {
         }
       });
   }
-
+  sendPost = async () => {
+    const Prediccion = {
+      user: this.data.id,
+      event:this.state.info.id,
+      p_local: this.state.P_local,
+      p_visita: this.state.P_visita
+    }
+    console.log(Prediccion)
+    await axios.post("http://localhost:4000/NewPred/", Prediccion)
+      .then(response => {
+        console.log(response.data)
+      });
+      this.state.Events=[];
+      this.sendGet();
+      
+  }
+  OnInputChange = e => {
+    this.setState({
+      [e.target.name]: e.target.value,
+    });
+    console.log(this.state)
+  }
 
   render() {
     return (
@@ -87,22 +116,34 @@ export default class EventosUsuario extends Component {
     return (
         <div className='eventos-app-sidebar-section'>
           <div className="card text-center">
-            <div className="card-header" >
-              {this.state.info.id}
-            </div>
+            
             <div className="card-body">
-              <h6 className="card-title">Local: {this.state.info.local}</h6>
-              <h6 className="card-title">Visitante: {this.state.info.visit} </h6>
-              <p className="card-text"> Local - Visitante <br />{this.state.info.s_local} - {this.state.info.s_visit} </p>
+            <label className="card-title">Local: {this.state.info.local}<br />Visitante: {this.state.info.visit} </label>
+              
+             
               <div className="form-group">
-                <h4>Prediccion</h4>
+                <b>Resultado</b>
+                <br/>
+                <label>Local: &nbsp;</label>
+                <input type="text" name="R_local" value={this.state.R_local}  disabled />
+              </div>
+
+              <div className="form-group">
+                <label>Visita:  &nbsp;</label>
+                <input type="text" name="R_visita" value={this.state.R_visita} disabled />
+              </div>
+
+
+             
+              <div className="form-group">
+                <h5>Prediccion</h5>
                 <label>Local</label>
-                <input type="text" name="p_local" value={this.state.info.p_local} onChange={this.OnInputChange} className="form-control" placeholder="Prediccion de visitante" />
+                <input type="text" name="P_local" value={this.state.P_local} onChange={this.OnInputChange} className="form-control" placeholder="Prediccion de visitante" />
               </div>
 
               <div className="form-group">
                 <label>Visitante</label>
-                <input type="text" name="p_visit" value={this.state.info.p_visit} onChange={this.OnInputChange} className="form-control" placeholder="Prediccion de local" />
+                <input type="text" name="P_visita" value={this.state.P_visita} onChange={this.OnInputChange} className="form-control" placeholder="Prediccion de local" />
               </div>
 
               <form onSubmit={this.onSubmit}>
@@ -110,10 +151,7 @@ export default class EventosUsuario extends Component {
                 <button type="submit" className="btn btn-primary btn-block">Ingresar</button>
 
               </form>
-            </div>
-            <div className="card-footer text-muted">
-              {this.state.info.end}
-            </div>
+            </div>            
           </div>
         </div>
     )
@@ -147,8 +185,12 @@ export default class EventosUsuario extends Component {
           s_visit: clickInfo.event._def.extendedProps.s_visit,
           p_local: clickInfo.event._def.extendedProps.p_local,
           p_visit: clickInfo.event._def.extendedProps.p_visit
-        }
-      }))
+        },
+        R_local:clickInfo.event._def.extendedProps.s_local,
+        R_visita:clickInfo.event._def.extendedProps.s_visit,
+        P_local:clickInfo.event._def.extendedProps.p_local,
+        P_visita:clickInfo.event._def.extendedProps.p_visit,
+      }),console.log(this.state.info))
   }
 }
 
